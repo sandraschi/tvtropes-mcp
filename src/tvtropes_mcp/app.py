@@ -2,16 +2,28 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, FastAPI
 
 from tvtropes_mcp.config import load_settings
+from tvtropes_mcp.db import (
+    ensure_db,
+)
+from tvtropes_mcp.db import (
+    scraper_status as db_scraper_status,
+)
+from tvtropes_mcp.scraper_manager import ScraperManager
 from tvtropes_mcp.server import mcp
+
+_settings = load_settings()
+_db_path = str(_settings.resolved_data_dir() / "tvtropes.db")
+ensure_db(_db_path)
 
 mcp_http = mcp.http_app(path="/mcp")
 router = APIRouter(prefix="/api")
+
+_scraper = ScraperManager(_db_path)
 
 
 @router.get("/health")
@@ -21,11 +33,42 @@ async def health() -> dict[str, str]:
 
 @router.get("/status")
 async def api_status() -> dict[str, Any]:
-    return {
-        "scraper": {"state": "not_started", "pages_visited": 0, "pages_queued": 0},
-        "db": {"size_mb": 0.0, "tropes": 0, "examples": 0},
-        "ollama": {"queue_depth": 0, "avg_latency_ms": 0.0},
+    stats = db_scraper_status(db_path=_db_path)
+    mgr = _scraper.get_status()
+    stats["scraper"] = {
+        "state": "running" if mgr.get("crawler", {}).get("running") else "stopped",
+        **mgr.get("crawler", {}).get("crawl", {}),
     }
+    return stats
+
+
+@router.post("/scraper/start")
+async def api_scraper_start() -> dict[str, Any]:
+    return _scraper.start_crawler()
+
+
+@router.post("/scraper/stop")
+async def api_scraper_stop() -> dict[str, Any]:
+    return _scraper.stop_crawler()
+
+
+@router.get("/scraper/status")
+async def api_scraper_status() -> dict[str, Any]:
+    return _scraper.get_status()
+
+
+@router.post("/scraper/extract")
+async def api_scraper_extract() -> dict[str, Any]:
+    result = await _scraper.run_extraction_pass()
+    return result
+
+
+@router.post("/scraper/bootstrap")
+async def api_scraper_bootstrap() -> dict[str, Any]:
+    from scraper.bootstrap import run_bootstrap
+
+    result = run_bootstrap(_db_path)
+    return result
 
 
 @router.get("/tools")
@@ -51,7 +94,7 @@ def build_app() -> FastAPI:
 
     app = FastAPI(
         title="tvtropes-mcp",
-        version="0.1.0",
+        version="0.2.0",
         lifespan=mcp_http.lifespan,
     )
     app.add_middleware(
@@ -68,7 +111,7 @@ def build_app() -> FastAPI:
     async def root() -> dict[str, Any]:
         return {
             "service": "tvtropes-mcp",
-            "version": "0.1.0",
+            "version": "0.2.0",
             "transports": {
                 "stdio": {
                     "command": "uv",
@@ -89,7 +132,7 @@ def build_app() -> FastAPI:
         base = f"http://{s.host}:{s.port}"
         return {
             "name": "tvtropes-mcp",
-            "version": "0.1.0",
+            "version": "0.2.0",
             "repository": "https://github.com/sandraschi/tvtropes-mcp",
             "transports": {
                 "stdio": {
