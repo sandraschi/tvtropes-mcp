@@ -1,0 +1,53 @@
+# TVTropes Scraper Config
+# See docs/SCRAPER_PLAN.md for full documentation
+
+crawl:
+  min_delay_s: 8
+  max_delay_s: 15
+  max_retries: 5
+  backoff_base_minutes: 30
+  backoff_max_hours: 4
+  daily_budget: 7000          # stop crawling for the day after this many pages
+  session_rotate_every: 500   # new curl_cffi session after N requests
+
+headers:
+  # Vienna fingerprint — natural for Goliath
+  accept_language: "de-AT,de;q=0.9,en;q=0.8,ja;q=0.7"
+  accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+  accept_encoding: "gzip, deflate, br"
+
+namespaces:
+  # Crawl order — highest priority first
+  priority:
+    - Main
+    - Laconic
+    - Film
+    - Series
+    - Anime
+    - Literature
+    - VideoGame
+    - WesternAnimation
+    - Music
+    - ComicBook
+    - Webcomic
+    - WebOriginal
+    - YMMV         # needs session cookie — handle separately
+  skip:
+    - SandBox
+    - Administrivia
+    - Ptitle        # redirect stubs, not real content
+
+ollama:
+  url: "http://localhost:11434"
+  model: "qwen2.5:27b"
+  timeout_s: 120
+  concurrent: 2     # max parallel Ollama calls
+
+storage:
+  db_path: "data/tvtropes.db"
+  cache_dir: "scraper/cache"
+  compress: true    # gzip HTML before storing
+
+server:
+  mcp_port: 10964
+  dashboard_port: 10965

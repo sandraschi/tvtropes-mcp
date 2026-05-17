@@ -1,0 +1,21 @@
+# tvtropes-mcp — gitignore
+
+# Scraped data — never commit
+data/
+scraper/cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+.uv/
+
+# Node (dashboard)
+webapp/node_modules/
+webapp/dist/
+
+# Env
+.env
+*.env.local
