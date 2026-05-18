@@ -432,3 +432,125 @@ async def semantic_search(
     except Exception as e:
         log.error(f"semantic_search failed: {e}", exc_info=True)
         return {"success": False, "query": query, "results": [], "total": 0, "error": str(e)}
+
+
+# ─── Prompts ────────────────────────────────────────────────────────
+
+@mcp.prompt
+async def trope_analysis_prompt(work_id: str) -> str:
+    """Analyse the tropes used in a specific work (film, series, anime, etc.).
+
+    ## Return Format
+    A structured prompt string for the AI to analyse tropes in a work.
+
+    ## Examples
+    get_prompt("trope_analysis_prompt", {"work_id": "Series/BreakingBad"})
+    """
+    return (
+        f"You are analysing the work {work_id} from the TVTropes mirror. "
+        f"Use the work_tropes tool to look up all tropes associated with {work_id}. "
+        f"For each trope returned, use trope_get to retrieve its full description, "
+        f"examples, and relationships. Then:\n\n"
+        f"1. Identify the 5-10 most defining tropes for this work\n"
+        f"2. Explain how each trope functions in the narrative\n"
+        f"3. Note any subversions or unusual uses of tropes\n"
+        f"4. Identify the work's primary genre through its trope cluster\n"
+        f"5. Suggest similar works based on trope overlap\n\n"
+        f"Present your analysis as a structured report with sections."
+    )
+
+
+@mcp.prompt
+async def creative_writing_prompt(genre: str = "fantasy", tone: str = "dark") -> str:
+    """Generate story ideas by combining tropes from the TVTropes mirror.
+
+    ## Return Format
+    A structured prompt string for AI-assisted creative writing.
+
+    ## Examples
+    get_prompt("creative_writing_prompt", {"genre": "sci-fi", "tone": "hopeful"})
+    """
+    return (
+        f"You are helping develop a {tone} {genre} story. "
+        f"Use the random_trope tool to discover unexpected tropes, "
+        f"and related_tropes to build a trope constellation. Then:\n\n"
+        f"1. Pick 3 tropes that could form the core of a {tone} {genre} narrative\n"
+        f"2. For each trope, use trope_get to read its description and examples\n"
+        f"3. Propose a story premise that combines all 3 tropes\n"
+        f"4. Suggest character archetypes that fit these tropes\n"
+        f"5. Outline a 3-act structure showing where each trope appears\n\n"
+        f"Be creative — the best stories come from unexpected trope combinations."
+    )
+
+
+@mcp.prompt
+async def recommendation_prompt(work_id: str, limit: int = 5) -> str:
+    """Find similar works based on shared tropes.
+
+    ## Return Format
+    A structured prompt string for AI-powered recommendations.
+
+    ## Examples
+    get_prompt("recommendation_prompt", {"work_id": "Anime/NeonGenesisEvangelion", "limit": 5})
+    """
+    return (
+        f"Recommend works similar to {work_id} using the TVTropes mirror. "
+        f"Use work_tropes to get the trope profile of {work_id}, "
+        f"then search for other works that share the most distinctive tropes. "
+        f"Focus on tropes that are specific to this work's genre and style, "
+        f"rather than universal tropes. For each recommendation:\n\n"
+        f"1. Name the work and its namespace\n"
+        f"2. List the shared tropes\n"
+        f"3. Explain why a fan of {work_id} would enjoy it\n"
+        f"4. Note any tropes that are unique to this recommendation\n\n"
+        f"Return up to {limit} recommendations ranked by relevance."
+    )
+
+
+@mcp.prompt
+async def trope_deep_dive_prompt(trope_id: str) -> str:
+    """Deep-dive into a single trope: history, variations, and notable examples.
+
+    ## Return Format
+    A structured prompt string for AI-assisted trope research.
+
+    ## Examples
+    get_prompt("trope_deep_dive_prompt", {"trope_id": "Main/ChekhovsGun"})
+    """
+    return (
+        f"Research the trope {trope_id} thoroughly using the TVTropes mirror. "
+        f"Use trope_get to retrieve the full page, then related_tropes to "
+        f"explore its position in the trope graph. Structure your report:\n\n"
+        f"1. **Definition**: What is this trope? Include the laconic summary.\n"
+        f"2. **History**: When did this trope get named? Any notable origins?\n"
+        f"3. **Relationships**: What are its sub-tropes, super-tropes, and sister tropes?\n"
+        f"4. **Notable examples**: Pick 3-5 of the best examples from different media\n"
+        f"5. **Variations**: How has this trope evolved or been subverted?\n"
+        f"6. **Writing advice**: How can a writer use this trope effectively?\n\n"
+        f"For each relationship link, use related_tropes to follow the chain "
+        f"one level deeper."
+    )
+
+
+@mcp.prompt
+async def calibre_integration_prompt(title: str) -> str:
+    """Cross-reference a Calibre book against the TVTropes Literature/ namespace.
+
+    ## Return Format
+    A structured prompt string for AI-assisted book trope analysis.
+
+    ## Examples
+    get_prompt("calibre_integration_prompt", {"title": "Harry Potter"})
+    """
+    return (
+        f"A book titled '{title}' was found in your Calibre library. "
+        f"Use trope_lookup_by_title to search the TVTropes mirror for this title "
+        f"in the Literature/ namespace. If found, use work_tropes to get its "
+        f"trope profile, then trope_get on the most interesting tropes. "
+        f"Finally:\n\n"
+        f"1. List the key tropes associated with this book\n"
+        f"2. Recommend 2-3 other books with similar trope profiles\n"
+        f"3. Identify the genre cluster this book belongs to\n\n"
+        f"If the book is not found in the mirror, suggest possible page names "
+        f"to check, or note that it may not yet have been crawled."
+    )

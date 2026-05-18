@@ -65,7 +65,7 @@
       "capabilities": {
         "tools": { "enabled": true, "listChanged": true },
         "resources": { "enabled": false },
-        "prompts": { "enabled": false },
+        "prompts": { "enabled": true, "listChanged": true },
         "webapp": {
           "enabled": true,
           "url": "http://127.0.0.1:10965",

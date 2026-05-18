@@ -523,6 +523,13 @@ async def api_tools() -> dict[str, Any]:
             "semantic_search",
         ],
         "mcp_http_path": "/mcp",
+        "prompts": [
+            "trope_analysis_prompt",
+            "creative_writing_prompt",
+            "recommendation_prompt",
+            "trope_deep_dive_prompt",
+            "calibre_integration_prompt",
+        ],
     }
 
 

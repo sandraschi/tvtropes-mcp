@@ -1,0 +1,60 @@
+{
+  "manifest_version": "0.2",
+  "name": "tvtropes-mcp",
+  "version": "0.2.0",
+  "description": "TVTropes local mirror: polite curl_cffi crawler, SQLite FTS5 + LanceDB storage, 12 FastMCP tools, React dashboard, Calibre cross-reference, cross-MCP bridge for Plex/Calibre.",
+  "author": {
+    "name": "Sandra Schieder"
+  },
+  "server": {
+    "type": "python",
+    "entry_point": "src/tvtropes_mcp/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "tvtropes_mcp", "--stdio"],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  },
+  "user_config": {
+    "ollama_host": {
+      "type": "string",
+      "title": "Ollama/LMStudio host URL",
+      "required": false,
+      "default": "http://localhost:11434"
+    },
+    "ollama_model": {
+      "type": "string",
+      "title": "Ollama model for extraction",
+      "required": false,
+      "default": "qwen2.5:27b"
+    },
+    "data_dir": {
+      "type": "string",
+      "title": "Data directory for SQLite DB + cache",
+      "required": false,
+      "default": ""
+    }
+  },
+  "tools": [
+    { "name": "trope_search", "description": "Full-text FTS5 search over trope names and descriptions" },
+    { "name": "trope_get", "description": "Full trope page: description, laconic, examples, sub/super/sister/related" },
+    { "name": "work_tropes", "description": "All tropes for a given work (e.g. Series/BreakingBad)" },
+    { "name": "trope_examples", "description": "Examples of a trope filtered by namespace/medium" },
+    { "name": "related_tropes", "description": "Graph traversal: SubTrope, SuperTrope, SisterTrope, Related" },
+    { "name": "namespace_list", "description": "List all namespaces and page counts" },
+    { "name": "random_trope", "description": "Random trope weighted by example count" },
+    { "name": "scraper_status", "description": "Crawl progress, DB size, Ollama backlog" },
+    { "name": "semantic_search", "description": "Vector similarity search via LanceDB + Ollama embeddings" },
+    { "name": "trope_lookup_by_title", "description": "Cross-reference book title against Literature/ namespace" },
+    { "name": "calibre_search", "description": "Search local Calibre library by title or author" },
+    { "name": "calibre_status", "description": "Check if a Calibre library is detected" }
+  ],
+  "cross_mcp_bridge": {
+    "description": "Deep-link from other MCP webapps (Plex, Calibre) to TVTropes pages",
+    "format": "http://127.0.0.1:10965/?lookup={namespace}/{page_name}",
+    "lookup_api": "GET http://127.0.0.1:10964/api/lookup/title?title={title}&hint={hint}",
+    "hints": ["movie", "show", "anime", "book", "game", "comic"]
+  }
+}

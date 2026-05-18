@@ -133,6 +133,19 @@ bridge:
 mcp name="scraper_status" args="{}":
     curl -s -X POST http://127.0.0.1:10964/api/mcp/tool -H "Content-Type: application/json" -d '{"name": "{{name}}", "args": {{args}}}' | ConvertFrom-Json | ConvertTo-Json
 
+# ── MCP Client Install ────────────────────────────────────────────
+
+# Install into an MCP client config: claude|cursor|windsurf|zed|antigravity|lmstudio|code|print
+install-mcp client="print":
+    .\install-mcp.ps1 {{client}}
+
+# Pack MCPB bundle (creates dist/tvtropes-mcp-v{version}.mcpb)
+mcpb-pack:
+    $ver = (Get-Content pyproject.toml | Select-String '^version = "(.*)"' | ForEach-Object { $$_.Matches.Groups[1].Value }); \
+    $null = New-Item -ItemType Directory -Path dist -Force; \
+    Compress-Archive -Path manifest.json, llms.txt, llms-full.txt, glama.json, src, scraper, docs, pyproject.toml, uv.lock -DestinationPath "dist/tvtropes-mcp-v$ver.mcpb" -CompressionLevel Optimal -Force; \
+    Write-Host "Created dist/tvtropes-mcp-v$ver.mcpb" -ForegroundColor Green
+
 # ── Housekeeping ──────────────────────────────────────────────────
 
 # Run pre-commit on all files
