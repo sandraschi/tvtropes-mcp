@@ -10,6 +10,7 @@ import { HelpPage } from "@/pages/HelpPage";
 import { LogPage } from "@/pages/LogPage";
 import { ChatPage } from "@/pages/ChatPage";
 import { OllamaPage } from "@/pages/OllamaPage";
+import { PagesPage } from "@/pages/PagesPage";
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="graph" element={<TropeGraph />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="ollama" element={<OllamaPage />} />
+            <Route path="pages" element={<PagesPage />} />
             <Route path="log" element={<LogPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="help" element={<HelpPage />} />

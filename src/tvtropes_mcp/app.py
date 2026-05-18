@@ -258,6 +258,83 @@ async def api_log(limit: int = 100) -> list[dict[str, Any]]:
     return get_recent(limit=limit)
 
 
+@router.get("/pages")
+async def api_pages(
+    status: str | None = None,
+    namespace: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """List crawled pages with optional status/namespace filter."""
+    from scraper.db import get_conn
+
+    where = "1=1"
+    params: list[Any] = []
+    if status:
+        where += " AND status=?"
+        params.append(status)
+    if namespace:
+        where += " AND namespace=?"
+        params.append(namespace)
+
+    with get_conn(_db_path) as conn:
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM pages WHERE {where}", params  # noqa: S608
+        ).fetchone()[0]
+        cols = "id, url, namespace, page_name, status, crawled_at, http_status, blocked, retry_count"
+        rows = conn.execute(
+            f"SELECT {cols} FROM pages WHERE {where} ORDER BY id DESC LIMIT ? OFFSET ?",  # noqa: S608
+            [*params, limit, offset],
+        ).fetchall()
+        return {
+            "total": total,
+            "pages": [dict(r) for r in rows],
+            "limit": limit,
+            "offset": offset,
+        }
+
+
+@router.get("/pages/{page_id}/content")
+async def api_page_content(page_id: int) -> dict[str, Any]:
+    """Return the main body content of a crawled page from its cached HTML."""
+    from scraper.db import get_conn, load_config
+    from tvtropes_mcp.content_extractor import extract_main_content, extract_text_only
+
+    with get_conn(_db_path) as conn:
+        row = conn.execute(
+            "SELECT url, content_hash FROM pages WHERE id=?", (page_id,)
+        ).fetchone()
+    if not row:
+        return {"error": "Page not found"}
+
+    content_hash = row["content_hash"]
+    if not content_hash:
+        return {"error": "No cached HTML for this page (not yet crawled)"}
+
+    from scraper.crawler import TvtropesCrawler
+
+    config = load_config()
+    crawler = TvtropesCrawler(config)
+    try:
+        html = crawler.read_cached_html(content_hash)
+    finally:
+        crawler.close()
+
+    if not html:
+        return {"error": "Cached HTML file not found on disk"}
+
+    main_html = extract_main_content(html)
+    text = extract_text_only(html)
+    return {
+        "url": row["url"],
+        "content_hash": content_hash,
+        "main_html": main_html,
+        "text": text,
+        "html_size": len(html),
+        "main_size": len(main_html),
+    }
+
+
 @router.get("/vector/count")
 async def api_vector_count() -> dict[str, Any]:
     """Return the number of vectors in the LanceDB index."""
