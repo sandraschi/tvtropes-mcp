@@ -269,6 +269,123 @@ async def api_ollama_test(body: dict[str, Any]) -> dict[str, Any]:
         return {"success": False, "host": host, "reachable": False, "error": str(e)}
 
 
+@router.get("/bridge")
+async def api_bridge() -> dict[str, Any]:
+    """Fleet bridge metadata — tells other MCP webapps how to deep-link here.
+
+    Other servers (plex-mcp, calibre-mcp) use this to build one-click links.
+    Follows the Cross-MCP Handoff Convention from WEBAPP_PORTS.md.
+    """
+    s = load_settings()
+    return {
+        "service": "tvtropes-mcp",
+        "version": "0.2.0",
+        "webapp_url": "http://127.0.0.1:10965",
+        "deep_link_format": "http://127.0.0.1:10965/?lookup={namespace}/{page_name}",
+        "api_lookup": f"http://{s.host}:{s.port}/api/lookup/title?title={{title}}&hint={{hint}}",
+        "supported_hints": {
+            "movie": "Film/ namespace",
+            "show": "Series/ namespace",
+            "anime": "Anime/ namespace",
+            "book": "Literature/ namespace",
+            "game": "VideoGame/ namespace",
+        },
+        "link_templates": {
+            "plex_movie": "/?lookup=Film/{title}",
+            "plex_show": "/?lookup=Series/{title}",
+            "plex_anime": "/?lookup=Anime/{title}",
+            "calibre_book": "/?lookup=Literature/{title}",
+        },
+    }
+
+
+@router.get("/lookup/title")
+async def api_lookup_title(
+    title: str,
+    hint: str | None = None,
+) -> dict[str, Any]:
+    """Resolve a title to a TVTropes page path.
+
+    Used by other MCP webapps (Plex, Calibre) for cross-app deep-linking.
+    The `hint` parameter narrows the search: 'movie', 'show', 'anime',
+    'book', 'game', or a specific namespace like 'Film'.
+
+    Returns the best-matching page in:
+    {"found": bool, "namespace": str, "page_name": str,
+     "url": str, "method": str}
+    """
+    from scraper.db import get_conn as _gconn
+
+    # Map hints to namespace search order
+    ns_map = {
+        "movie": ["Film", "Main"],
+        "show": ["Series", "Main"],
+        "anime": ["Anime", "Main"],
+        "book": ["Literature", "Main"],
+        "game": ["VideoGame", "Main"],
+        "comic": ["ComicBook", "Main"],
+    }
+    namespaces = ns_map.get(hint or "", [hint] if hint else None) or [
+        "Film", "Series", "Anime", "Literature", "VideoGame",
+        "Main", "Manga", "ComicBook", "VisualNovel", "Music",
+        "WesternAnimation", "Webcomic", "WebOriginal", "Theatre",
+    ]
+
+    # Normalize title: strip spaces, handle common variations
+    normalized = title.strip()
+    candidates = [
+        normalized,
+        normalized.replace(" ", ""),
+        normalized.replace(":", "").replace(" ", ""),
+        normalized.replace("'", "").replace(" ", ""),
+        normalized.replace("-", ""),
+        normalized.replace("The ", "").replace("A ", "").replace("An ", ""),
+    ]
+
+    with _gconn(_db_path) as conn:
+        for ns in namespaces:
+            for cand in candidates:
+                if not cand:
+                    continue
+                row = conn.execute(
+                    "SELECT namespace, page_name, title FROM tropes "
+                    "WHERE namespace=? AND page_name LIKE ? LIMIT 1",
+                    (ns, cand),
+                ).fetchone()
+                if row:
+                    page_name = row["page_name"]
+                    return {
+                        "found": True,
+                        "namespace": ns,
+                        "page_name": page_name,
+                        "title": row["title"],
+                        "url": f"https://tvtropes.org/pmwiki/pmwiki.php/{ns}/{page_name}",
+                        "webapp_url": f"/?lookup={ns}/{page_name}",
+                        "method": "exact_match",
+                    }
+
+            # Fuzzy fallback: LIKE search within namespace
+            like = f"%{cand.replace('%', '!%').replace('_', '!_')}%"
+            row = conn.execute(
+                "SELECT namespace, page_name, title FROM tropes "
+                "WHERE namespace=? AND (page_name LIKE ? ESCAPE '!' "
+                "OR title LIKE ? ESCAPE '!') LIMIT 1",
+                (ns, like, like),
+            ).fetchone()
+            if row:
+                return {
+                    "found": True,
+                    "namespace": row["namespace"],
+                    "page_name": row["page_name"],
+                    "title": row["title"],
+                    "url": f"https://tvtropes.org/pmwiki/pmwiki.php/{row['namespace']}/{row['page_name']}",
+                    "webapp_url": f"/?lookup={row['namespace']}/{row['page_name']}",
+                    "method": "fuzzy_match",
+                }
+
+    return {"found": False, "title": title, "hint": hint}
+
+
 @router.get("/log")
 async def api_log(limit: int = 100) -> list[dict[str, Any]]:
     """Return recent log entries from the scraper."""

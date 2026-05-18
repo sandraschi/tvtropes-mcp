@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
-import { Search, Loader2, BookOpen, Layers, ChevronRight } from "lucide-react";
-import { apiGet, apiMcpTool } from "@/api/client";
+import { useCallback, useEffect, useState } from "react";
+import { Search, Loader2, BookOpen, Layers } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { apiMcpTool } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,10 @@ type TropeGetResponse = {
 };
 
 export function TropeSearch() {
-  const [query, setQuery] = useState("");
+  const [searchParams] = useSearchParams();
+  const initialTrope = searchParams.get("trope") ?? "";
+
+  const [query, setQuery] = useState(initialTrope);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -77,6 +81,17 @@ export function TropeSearch() {
     } finally {
       setDetailLoading(false);
     }
+  }, []);
+
+  // Auto-load trope from ?trope= URL param (cross-app deep-linking)
+  useEffect(() => {
+    if (initialTrope && initialTrope.includes("/")) {
+      openTrope(initialTrope);
+    } else if (initialTrope) {
+      doSearch();
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

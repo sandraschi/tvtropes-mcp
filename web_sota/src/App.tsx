@@ -1,4 +1,5 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
 import { LoggerProvider } from "@/context/LoggerContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Dashboard } from "@/pages/Dashboard";
@@ -12,13 +13,30 @@ import { ChatPage } from "@/pages/ChatPage";
 import { OllamaPage } from "@/pages/OllamaPage";
 import { PagesPage } from "@/pages/PagesPage";
 
+/** Reads ?lookup=Namespace/PageName and redirects to /search?trope=... */
+function LookupRedirect() {
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const lookup = params.get("lookup");
+
+  useEffect(() => {
+    if (lookup) {
+      navigate(`/search?trope=${encodeURIComponent(lookup)}`, { replace: true });
+    } else {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [lookup, navigate]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <LoggerProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<AppLayout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route index element={<LookupRedirect />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="search" element={<TropeSearch />} />
             <Route path="works" element={<WorkBrowser />} />
