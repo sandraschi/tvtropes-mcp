@@ -27,6 +27,7 @@ uv run python -m tvtropes_mcp --serve
 - [Cross-MCP Bridge](docs/CROSS_MCP.md) — deep-linking from Plex, Calibre, other fleet apps
 - [Ethics & Legal](docs/ETHICS_AND_LEGAL.md) — CC BY-SA 3.0, ToS, rate-limiting philosophy
 - [Implementation Plan](docs/SCRAPER_PLAN.md) — full spec, crawl math, schema, risk analysis
+- [Installation Guide](INSTALL.md) — prerequisites, clone, config, start
 - [Quick Start](#quick-start) — below
 
 ---
@@ -34,26 +35,25 @@ uv run python -m tvtropes_mcp --serve
 ## Quick Start
 
 ```powershell
-# Install
-uv sync --extra dev
-
-# Start API + MCP on :10964
-uv run python -m tvtropes_mcp --serve
-
-# Dashboard on :10965 (separate terminal)
-cd web_sota && npm install && npm run dev
+git clone https://github.com/sandraschi/tvtropes-mcp.git
+cd tvtropes-mcp
+just install     # Python deps + frontend
+just serve       # API + MCP on :10964
+# Dashboard: http://127.0.0.1:10965
 ```
 
-Or via the justfile:
+See [INSTALL.md](INSTALL.md) for prerequisites, configuration, and MCP client setup.
+
+Or via individual commands:
 
 | Command | Action |
 |---------|--------|
 | `just serve` | API + MCP on `:10964` |
-| `just stdio` | MCP over stdio (Cursor, Claude Desktop) |
-| `just scrape` | Standalone crawler daemon |
+| `just stdio` | MCP over stdio |
+| `just web` | Dashboard on `:10965` |
+| `just dev` | Full stack (backend + dashboard) |
 | `just test` | Run 98 tests |
 | `just lint` | Ruff check |
-| `just web` | Dashboard on `:10965` |
 
 ---
 
