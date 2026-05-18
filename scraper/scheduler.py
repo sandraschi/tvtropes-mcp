@@ -6,6 +6,7 @@ import logging
 import threading
 import time
 import uuid
+from pathlib import Path
 from typing import Any
 
 from scraper.bootstrap import run_bootstrap
@@ -42,6 +43,9 @@ class CrawlScheduler:
         self._pages_blocked = 0
         self._errors = 0
         self._bootstrapped = False
+        self._maintenance_counter = 0
+        self._last_backup_time = time.time()
+        self._last_settings_reload = time.time()
 
     def start(self) -> None:
         if self._running:
@@ -83,10 +87,45 @@ class CrawlScheduler:
         while not self._stop_event.is_set():
             try:
                 self._crawl_one()
+                self._maintenance_counter += 1
+                if self._maintenance_counter % 100 == 0:
+                    self._check_maintenance()
             except Exception as e:
                 self._errors += 1
                 log.error(f"Crawl loop error: {e}", exc_info=True)
             time.sleep(1)
+
+    def _check_maintenance(self) -> None:
+        now = time.time()
+        if now - self._last_settings_reload > 3600:
+            try:
+                fresh = load_config()
+                self.config = fresh
+                self.crawler.config = fresh
+                log.debug("Settings hot-reloaded")
+                self._last_settings_reload = now
+            except Exception as exc:
+                log.debug(f"Settings reload failed: {exc}")
+        if now - self._last_backup_time > 21600:
+            try:
+                import sqlite3
+
+                backup_dir = Path(self.db_path).parent / "backups"
+                backup_dir.mkdir(parents=True, exist_ok=True)
+                ts = time.strftime("%Y%m%d_%H%M%S")
+                bp = backup_dir / f"tvtropes_{ts}.db"
+                dst = sqlite3.connect(str(bp))
+                src = sqlite3.connect(self.db_path)
+                src.backup(dst)
+                src.close()
+                dst.close()
+                size_mb = round(bp.stat().st_size / (1024 * 1024), 2)
+                log.info(f"Auto-backup: {bp.name} ({size_mb} MB)")
+                for old in sorted(backup_dir.glob("*.db"), reverse=True)[20:]:
+                    old.unlink()
+                self._last_backup_time = now
+            except Exception as e:
+                log.warning(f"Auto-backup failed: {e}")
 
     def _crawl_one(self) -> None:
         if not self._bootstrapped:

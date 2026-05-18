@@ -1,6 +1,6 @@
 import { Brain, Loader2, MessageSquare, Send, User } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { apiMcpTool, apiPost } from "@/api/client";
+import { apiGet, apiMcpTool, apiPost } from "@/api/client";
 import { PageHero } from "@/components/layout/PageHero";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,7 +27,7 @@ export function ChatPage() {
   useEffect(() => {
     (async () => {
       try {
-        const r = await apiPost<{ running: boolean }>("/api/ollama/status", {});
+        const r = await apiGet<{ running: boolean }>("/api/ollama/status");
         setOllamaOk(r.running);
       } catch {
         setOllamaOk(false);

@@ -82,10 +82,17 @@ async def api_scraper_bootstrap() -> dict[str, Any]:
 async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
     """Crawl from a starting URL with depth limit.
 
-    Accepts a full TVTropes URL or a short path like "Anime/Planetarian".
+    Rate-limited: max 1 crawl request every 30 seconds.
     Depth controls how many link-hops to follow (default 1 = only direct links).
-    Runs the synchronous crawler in a thread to avoid blocking the event loop.
     """
+    import time as _time
+
+    # Rate limit
+    now = _time.time()
+    if hasattr(api_scraper_crawl, "_last_call") and now - api_scraper_crawl._last_call < 30:
+        wait = max(1, int(30 - (now - api_scraper_crawl._last_call)))
+        return {"success": False, "error": f"Rate limited. Wait {wait}s before crawling again."}
+    api_scraper_crawl._last_call = now
 
     from bs4 import BeautifulSoup
 
@@ -222,6 +229,40 @@ async def api_settings_update(body: dict[str, Any]) -> dict[str, Any]:
     return update(body)
 
 
+@router.post("/scraper/backup")
+async def api_scraper_backup() -> dict[str, Any]:
+    """Create a SQLite backup snapshot in data/backups/."""
+    import sqlite3
+    import time
+
+    from scraper.db import get_conn
+
+    backup_dir = _settings.resolved_data_dir() / "backups"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    backup_path = backup_dir / f"tvtropes_{ts}.db"
+
+    with get_conn(_db_path) as src:
+        dst = sqlite3.connect(str(backup_path))
+        src.backup(dst)
+        dst.close()
+
+    size_mb = round(backup_path.stat().st_size / (1024 * 1024), 2)
+    log.info(f"Backup created: {backup_path} ({size_mb} MB)")
+
+    existing = sorted(backup_dir.glob("*.db"), reverse=True)
+    for old in existing[20:]:
+        old.unlink()
+        log.debug(f"Removed old backup: {old}")
+
+    return {
+        "success": True,
+        "path": str(backup_path),
+        "size_mb": size_mb,
+        "backups_kept": min(len(existing), 20),
+    }
+
+
 @router.get("/ollama/status")
 async def api_ollama_status() -> dict[str, Any]:
     """Check if Ollama (or LMStudio) is running and has the configured model."""
@@ -247,6 +288,32 @@ async def api_ollama_status() -> dict[str, Any]:
             return {"running": False, "host": s["ollama_host"], "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"running": False, "host": s["ollama_host"], "error": str(e)}
+
+
+@router.post("/ollama/chat")
+async def api_ollama_chat(body: dict[str, Any]) -> dict[str, Any]:
+    """Simple Ollama chat endpoint for the ChatPage AI assistant."""
+    import httpx
+
+    host = body.get("host", _settings.ollama_host)
+    model = body.get("model", _settings.ollama_model)
+    messages = body.get("messages", [])
+
+    if not messages:
+        return {"response": "No messages provided.", "error": True}
+
+    try:
+        async with httpx.AsyncClient(timeout=_settings.ollama_timeout) as client:
+            r = await client.post(
+                f"{host}/api/chat",
+                json={"model": model, "messages": messages, "stream": False},
+            )
+            if r.status_code == 200:
+                data = r.json()
+                return {"response": data.get("message", {}).get("content", ""), "error": False}
+            return {"response": f"Ollama HTTP {r.status_code}", "error": True}
+    except Exception as e:
+        return {"response": f"Ollama error: {e}", "error": True}
 
 
 @router.post("/ollama/test")

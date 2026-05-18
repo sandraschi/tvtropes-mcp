@@ -199,6 +199,21 @@ class Extractor:
                         insert_relation(self.db_path, ns, name, rel_type, to_ns, to_name)
 
                 mark_extracted(self.db_path, page_id)
+
+                # Auto-embed into LanceDB if Ollama supports embeddings
+                try:
+                    from tvtropes_mcp.vector_store import upsert_trope_embedding
+
+                    await upsert_trope_embedding(
+                        self.config.db_path,
+                        {"namespace": ns, "page_name": name,
+                         "title": result.get("title"), "description": result.get("description"),
+                         "laconic": result.get("laconic")},
+                        ollama_host=self.config.ollama_url,
+                    )
+                except Exception as exc:
+                    log.debug(f"Embedding skipped for {ns}/{name}: {exc}")
+
                 return True
 
         tasks = [_extract_one(row) for row in rows]
