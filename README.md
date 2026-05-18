@@ -3,7 +3,7 @@
 [![Status: Alpha](https://img.shields.io/badge/Status-Alpha-red?style=flat-square)](README.md)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![FastMCP](https://img.shields.io/badge/FastMCP-3.2+-purple?style=flat-square)](https://github.com/jlowin/fastmcp)
-[![Tests](https://img.shields.io/badge/Tests-63%20passing-brightgreen?style=flat-square)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-98%20passing-brightgreen?style=flat-square)](tests/)
 [![Ruff](https://img.shields.io/badge/Ruff-clean-brightgreen?style=flat-square)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Code size](https://img.shields.io/github/languages/code-size/sandraschi/tvtropes-mcp?style=flat-square)](.)
@@ -138,7 +138,7 @@ The scraper and MCP server are **decoupled processes** that share a single SQLit
 
 ---
 
-## MCP Tools (11)
+## MCP Tools (12)
 
 All tools are registered via `@mcp.tool` decorators in [`src/tvtropes_mcp/server.py`](src/tvtropes_mcp/server.py) and query the local SQLite mirror. Every tool is annotated `readOnlyHint` — the mirror is never modified by queries.
 
@@ -152,6 +152,7 @@ All tools are registered via `@mcp.tool` decorators in [`src/tvtropes_mcp/server
 | `namespace_list` | — | All namespaces with page counts |
 | `random_trope` | — | Random trope weighted by example count |
 | `scraper_status` | — | Crawl progress, DB size, Ollama backlog |
+| `semantic_search` | `query`, `limit` | Vector similarity search via LanceDB + Ollama embeddings |
 | `trope_lookup_by_title` | `title` | Cross-reference a book title against the Literature/ namespace |
 | `calibre_search` | `title?`, `author?`, `limit` | Search your local Calibre library |
 | `calibre_status` | — | Check if a Calibre library is detected |
@@ -209,6 +210,36 @@ curl -X POST http://127.0.0.1:10964/api/mcp/tool \
 | POST | `/api/scraper/bootstrap` | Seed URL queue from sitemap.xml |
 | GET | `/api/calibre/status` | Calibre library availability |
 | GET | `/api/calibre/search` | Search Calibre books by title/author |
+| GET | `/api/bridge` | Fleet bridge metadata for cross-MCP linking |
+| GET | `/api/lookup/title` | Resolve title to page path (`?title=Matrix&hint=movie`) |
+| GET | `/api/settings` | User settings from `data/settings.json` |
+| POST | `/api/settings` | Update and persist settings |
+| GET | `/api/ollama/status` | Check Ollama/LMStudio connectivity |
+| POST | `/api/ollama/test` | Test a specific host+model combination |
+
+---
+
+## Cross-MCP Bridge
+
+Other MCP webapps (Plex, Calibre, etc.) can link directly to TVTropes pages:
+
+```
+# Deep-link URL (for any app to construct):
+http://127.0.0.1:10965/?lookup=Film/TheMatrix
+http://127.0.0.1:10965/?lookup=Anime/NeonGenesisEvangelion
+http://127.0.0.1:10965/?lookup=Literature/HarryPotter
+
+# Title resolution API (for apps with a title but not the path):
+GET http://127.0.0.1:10964/api/lookup/title?title=Matrix&hint=movie
+→ {"found":true, "namespace":"Film", "page_name":"TheMatrix"}
+
+# Fleet bridge metadata:
+GET http://127.0.0.1:10964/api/bridge
+→ {"deep_link_format": ".../?lookup={namespace}/{page_name}",
+   "link_templates": {"plex_movie": "/?lookup=Film/{title}", ...}}
+```
+
+The `hint` parameter narrows lookup: `movie`, `show`, `anime`, `book`, `game`, `comic`.
 
 ---
 
