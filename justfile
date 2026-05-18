@@ -146,6 +146,10 @@ mcpb-pack:
     Compress-Archive -Path manifest.json, llms.txt, llms-full.txt, glama.json, src, scraper, docs, pyproject.toml, uv.lock -DestinationPath "dist/tvtropes-mcp-v$ver.mcpb" -CompressionLevel Optimal -Force; \
     Write-Host "Created dist/tvtropes-mcp-v$ver.mcpb" -ForegroundColor Green
 
+# Create a SQLite backup snapshot
+backup:
+    curl -s -X POST http://127.0.0.1:10964/api/scraper/backup | ConvertFrom-Json | ConvertTo-Json
+
 # ── Housekeeping ──────────────────────────────────────────────────
 
 # Run pre-commit on all files
@@ -157,4 +161,4 @@ clean:
     Remove-Item -Recurse -Force .venv, __pycache__, .pytest_cache, .ruff_cache, web_sota/node_modules -ErrorAction SilentlyContinue
     Get-ChildItem -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
 
-.PHONY: lint format format-check test test-all web-lint web-fmt web-ci web-build ci serve stdio scrape web dev install sync sync-web lookup crawl scraper-status ollama-status bridge mcp pre-commit clean
+.PHONY: lint format format-check test test-all web-lint web-fmt web-ci web-build ci serve stdio scrape web dev install sync sync-web lookup crawl scraper-status ollama-status bridge mcp backup install-mcp mcpb-pack pre-commit clean
