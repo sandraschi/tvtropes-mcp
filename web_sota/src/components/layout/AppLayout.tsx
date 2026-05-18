@@ -3,6 +3,9 @@ import {
   BookMarked,
   HelpCircle,
   Home,
+  Layers,
+  Library,
+  Lightbulb,
   Menu,
   Settings,
   X,
@@ -13,6 +16,9 @@ import { Button } from "@/components/ui/button";
 
 const nav = [
   { to: "/dashboard", label: "Home", icon: Home },
+  { to: "/search", label: "Trope Search", icon: Lightbulb },
+  { to: "/works", label: "Work Browser", icon: Library },
+  { to: "/graph", label: "Trope Graph", icon: Layers },
   { to: "/settings", label: "Settings", icon: Settings },
   { to: "/help", label: "Help", icon: HelpCircle },
 ] as const;

@@ -49,3 +49,7 @@ export async function apiDelete(path: string): Promise<void> {
   const r = await fetchWithTimeout(`${base}${path}`, { method: "DELETE" });
   if (!r.ok) throw new Error(await parseErr(r));
 }
+
+export async function apiMcpTool<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
+  return apiPost<T>("/api/mcp/tool", { name, args });
+}

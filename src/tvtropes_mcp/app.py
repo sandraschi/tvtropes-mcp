@@ -83,9 +83,69 @@ async def api_tools() -> dict[str, Any]:
             "namespace_list",
             "random_trope",
             "scraper_status",
+            "trope_lookup_by_title",
+            "calibre_search",
+            "calibre_status",
         ],
         "mcp_http_path": "/mcp",
     }
+
+
+@router.get("/calibre/status")
+async def api_calibre_status() -> dict[str, Any]:
+    from tvtropes_mcp.calibre_ops import calibre_status as _cs
+
+    return _cs()
+
+
+@router.get("/calibre/search")
+async def api_calibre_search(
+    title: str | None = None,
+    author: str | None = None,
+    limit: int = 10,
+) -> dict[str, Any]:
+    from tvtropes_mcp.calibre_ops import find_calibre_db, search_books
+
+    calibre_db = find_calibre_db()
+    if calibre_db is None:
+        return {"found": False, "books": [], "total": 0}
+    books = search_books(title=title, author=author, limit=limit, calibre_db=calibre_db)
+    return {"found": True, "books": books, "total": len(books)}
+
+
+@router.post("/mcp/tool")
+async def api_mcp_tool(body: dict[str, Any]) -> dict[str, Any]:
+    """Proxy: call an MCP tool by name and return its result as JSON."""
+    import json
+
+    from tvtropes_mcp.server import mcp
+
+    name = body.get("name", "")
+    args = body.get("args", {})
+    if not name:
+        return {"success": False, "error": "Missing tool name"}
+    result = await mcp.call_tool(name, args)
+    if result.content:
+        text = result.content[0].text
+        return json.loads(text)
+    return {"success": False, "error": "No content returned"}
+
+
+@router.get("/mcp/tools")
+async def api_mcp_tools_list() -> list[dict[str, Any]]:
+    """Proxy: list all registered MCP tools with their schemas."""
+
+    from tvtropes_mcp.server import mcp
+
+    tools = await mcp.list_tools()
+    return [
+        {
+            "name": t.name,
+            "description": t.description,
+            "inputSchema": t.inputSchema,
+        }
+        for t in tools
+    ]
 
 
 def build_app() -> FastAPI:

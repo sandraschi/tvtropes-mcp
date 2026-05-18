@@ -280,18 +280,14 @@ def mark_extracted(db_path: str | Path, page_id: int) -> None:
 
 def queue_urls(db_path: str | Path, urls: list[dict[str, str]]) -> int:
     with get_conn(db_path) as conn:
-        count = 0
+        before = conn.total_changes
         for u in urls:
-            try:
-                conn.execute(
-                    "INSERT OR IGNORE INTO pages(url, namespace, page_name) VALUES (?, ?, ?)",
-                    (u["url"], u.get("namespace"), u.get("page_name")),
-                )
-                count += 1
-            except sqlite3.IntegrityError:
-                pass
+            conn.execute(
+                "INSERT OR IGNORE INTO pages(url, namespace, page_name) VALUES (?, ?, ?)",
+                (u["url"], u.get("namespace"), u.get("page_name")),
+            )
         conn.commit()
-    return count
+        return conn.total_changes - before
 
 
 def get_namespace_counts(db_path: str | Path) -> list[dict[str, Any]]:
@@ -538,12 +534,9 @@ def _sync_fts(
     description: str | None,
     laconic: str | None,
 ) -> None:
+    conn.execute("DELETE FROM tropes_fts WHERE rowid=?", (trope_id,))
     conn.execute(
-        "INSERT INTO tropes_fts(rowid, page_name, title, description, laconic) "
-        "VALUES (?, ?, ?, ?, ?) "
-        "ON CONFLICT(rowid) DO UPDATE SET "
-        "page_name=excluded.page_name, title=excluded.title, "
-        "description=excluded.description, laconic=excluded.laconic",
+        "INSERT INTO tropes_fts(rowid, page_name, title, description, laconic) VALUES (?, ?, ?, ?, ?)",
         (trope_id, page_name, title or "", description or "", laconic or ""),
     )
 

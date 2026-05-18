@@ -296,3 +296,99 @@ async def scraper_status(
             "ollama": {"queue_depth": 0, "avg_latency_ms": 0.0},
             "error": str(e),
         }
+
+
+@mcp.tool(annotations={"readOnlyHint": True})
+async def trope_lookup_by_title(
+    title: str,
+    ctx: Context = None,
+) -> dict[str, Any]:
+    """Cross-reference a book title against the Literature/ trope index.
+
+    Searches the trope mirror for works matching the given title in the
+    Literature namespace, and also runs an FTS search on title keywords.
+
+    ## Return Format
+    {"success": bool, "book_title": str, "direct_literature_match": list,
+     "fts_results": list, "total_direct": int, "total_fts": int}
+
+    ## Examples
+    trope_lookup_by_title("Harry Potter")
+    """
+    try:
+        from tvtropes_mcp.calibre_ops import lookup_tropes_for_book
+
+        return lookup_tropes_for_book(title, db_path=_db_path)
+    except Exception as e:
+        log.error(f"trope_lookup_by_title failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "book_title": title,
+            "direct_literature_match": [],
+            "fts_results": [],
+            "total_direct": 0,
+            "total_fts": 0,
+            "error": str(e),
+        }
+
+
+@mcp.tool(annotations={"readOnlyHint": True})
+async def calibre_search(
+    title: str | None = None,
+    author: str | None = None,
+    limit: int = 10,
+    ctx: Context = None,
+) -> dict[str, Any]:
+    """Search the local Calibre library for books by title or author.
+
+    ## Return Format
+    {"success": bool, "query": dict, "books": list, "total": int}
+
+    ## Examples
+    calibre_search(title="Harry Potter")
+    calibre_search(author="Sanderson")
+    """
+    try:
+        from tvtropes_mcp.calibre_ops import find_calibre_db, search_books
+
+        calibre_db = find_calibre_db()
+        if calibre_db is None:
+            return {
+                "success": False,
+                "query": {"title": title, "author": author},
+                "books": [],
+                "total": 0,
+                "error": "Calibre library not found",
+            }
+        books = search_books(title=title, author=author, limit=limit, calibre_db=calibre_db)
+        return {
+            "success": True,
+            "query": {"title": title, "author": author},
+            "books": books,
+            "total": len(books),
+        }
+    except Exception as e:
+        log.error(f"calibre_search failed: {e}", exc_info=True)
+        return {"success": False, "query": {"title": title, "author": author}, "books": [], "total": 0, "error": str(e)}
+
+
+@mcp.tool(annotations={"readOnlyHint": True})
+async def calibre_status(
+    ctx: Context = None,
+) -> dict[str, Any]:
+    """Check if a Calibre library is available on this machine.
+
+    ## Return Format
+    {"success": bool, "found": bool, "library_path": str|None, "book_count": int}
+
+    ## Examples
+    calibre_status()
+    """
+    try:
+        from tvtropes_mcp.calibre_ops import calibre_status as _calibre_status
+
+        result = _calibre_status()
+        return {"success": True, **result}
+    except Exception as e:
+        log.error(f"calibre_status failed: {e}", exc_info=True)
+        return {"success": False, "found": False, "library_path": None, "book_count": 0, "error": str(e)}
