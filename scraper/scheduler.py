@@ -57,10 +57,35 @@ class CrawlScheduler:
         self._pages_blocked = 0
         self._errors = 0
         self._session_id = str(uuid.uuid4())[:8]
+
+        # Crash recovery: reset any pages left in 'crawling' state
+        self._recover_interrupted()
+
         start_crawl_session(self.db_path, self._session_id)
         self._thread = threading.Thread(target=self._run_loop, daemon=True, name="crawl-loop")
         self._thread.start()
         log.info(f"Crawl scheduler started (session={self._session_id})")
+
+    def _recover_interrupted(self) -> None:
+        """Reset pages stuck in 'crawling' to 'pending' and end orphaned sessions."""
+        from scraper.db import get_conn
+
+        with get_conn(self.db_path) as conn:
+            orphaned = conn.execute(
+                "SELECT COUNT(*) FROM pages WHERE status='crawling'"
+            ).fetchone()[0]
+            if orphaned:
+                conn.execute(
+                    "UPDATE pages SET status='pending' WHERE status='crawling'"
+                )
+                conn.commit()
+                log.info(f"Recovered {orphaned} interrupted page(s) — reset to pending")
+
+            conn.execute(
+                "UPDATE crawl_log SET ended_at=datetime('now'), errors=errors+1 "
+                "WHERE ended_at IS NULL"
+            )
+            conn.commit()
 
     def stop(self) -> None:
         log.info("Stopping crawl scheduler...")
