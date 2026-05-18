@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import { ChevronUp, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useLogger } from "@/context/LoggerContext";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,7 @@ export function LoggerPanel() {
   useEffect(() => {
     if (!open || paused) return;
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [entries, open, paused]);
+  }, [open, paused]);
 
   return (
     <div
@@ -32,10 +32,21 @@ export function LoggerPanel() {
           Logger ({entries.length})
         </button>
         <div className="flex gap-1">
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setPaused(!paused)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setPaused(!paused)}
+          >
             {paused ? "Resume" : "Pause"}
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={clear} aria-label="Clear logs">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={clear}
+            aria-label="Clear logs"
+          >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>

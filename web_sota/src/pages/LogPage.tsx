@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiGet } from "@/api/client";
-import { Button } from "@/components/ui/button";
 import { PageHero } from "@/components/layout/PageHero";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type LogEntry = {
@@ -21,7 +21,9 @@ export function LogPage() {
     try {
       const data = await apiGet<LogEntry[]>("/api/log?limit=200");
       setEntries(data);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export function LogPage() {
 
   useEffect(() => {
     if (!paused) endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [entries, paused]);
+  }, [paused]);
 
   return (
     <div className="space-y-4">
@@ -64,11 +66,15 @@ export function LogPage() {
         }}
       >
         {entries.length === 0 && (
-          <p className="text-muted-foreground text-center py-8">No log entries yet. Start the scraper to see output.</p>
+          <p className="text-muted-foreground text-center py-8">
+            No log entries yet. Start the scraper to see output.
+          </p>
         )}
         {entries.map((e, i) => (
           <div key={i} className="flex gap-2">
-            <span className="text-muted-foreground shrink-0 w-8">{e.ts.split(" ")[1]?.slice(0, 8) ?? e.ts}</span>
+            <span className="text-muted-foreground shrink-0 w-8">
+              {e.ts.split(" ")[1]?.slice(0, 8) ?? e.ts}
+            </span>
             <span
               className={cn(
                 "uppercase w-10 shrink-0",
@@ -80,7 +86,9 @@ export function LogPage() {
             >
               {e.level}
             </span>
-            <span className="text-muted-foreground shrink-0 w-20 truncate">{e.name?.split(".").slice(-1)[0] ?? "—"}</span>
+            <span className="text-muted-foreground shrink-0 w-20 truncate">
+              {e.name?.split(".").slice(-1)[0] ?? "—"}
+            </span>
             <span className="break-all">{e.message}</span>
           </div>
         ))}

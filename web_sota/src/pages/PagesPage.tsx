@@ -1,10 +1,10 @@
+import { RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, FileText, RefreshCw, Search } from "lucide-react";
 import { apiGet } from "@/api/client";
-import { Button } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { PageHero } from "@/components/layout/PageHero";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 type PageRow = {
@@ -63,7 +63,9 @@ export function PagesPage() {
       if (nsFilter.trim()) params.set("namespace", nsFilter.trim());
       const r = await apiGet<PagesResp>(`/api/pages?${params}`);
       setData(r);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setLoading(false);
   }, [statusFilter, nsFilter]);
 
@@ -78,7 +80,9 @@ export function PagesPage() {
     try {
       const r = await apiGet<ContentResp>(`/api/pages/${p.id}/content`);
       setContent(r);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setContentLoading(false);
   }, []);
 
@@ -92,7 +96,14 @@ export function PagesPage() {
         lead="Pages discovered and fetched by the scraper. Click a page to view its cached body content."
       >
         <div className="flex flex-wrap gap-2 pt-1">
-          <Button size="sm" variant="ghost" onClick={() => { setStatusFilter(null); setNsFilter(""); }}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setStatusFilter(null);
+              setNsFilter("");
+            }}
+          >
             All
           </Button>
           {statuses.map((s) => (
@@ -145,9 +156,7 @@ export function PagesPage() {
                 <span className="font-medium truncate">
                   {p.namespace}/{p.page_name}
                 </span>
-                <span className={cn("shrink-0", STATUS_COLORS[p.status] ?? "")}>
-                  {p.status}
-                </span>
+                <span className={cn("shrink-0", STATUS_COLORS[p.status] ?? "")}>{p.status}</span>
               </div>
               <div className="flex gap-3 text-muted-foreground mt-0.5">
                 {p.http_status && <span>HTTP {p.http_status}</span>}

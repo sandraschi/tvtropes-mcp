@@ -1,0 +1,33 @@
+# tvtropes-mcp
+
+> TVTropes local mirror: curl_cffi Chrome 131 crawler, APScheduler politeness loop, SQLite FTS5 storage, Ollama Qwen 2.5 extraction, LanceDB vector store, 12 FastMCP tools, React/Vite dashboard (ports 10964/10965). Calibre cross-reference.
+
+**Full reference:** [llms-full.txt](llms-full.txt)
+
+## Entry
+
+- Python: `src/tvtropes_mcp/` — `server.py` (12 MCP tools), `app.py` (FastAPI + `/mcp`). Dual transport: stdio (`--stdio`) and streamable HTTP (`--serve`, `/mcp`); `GET /.well-known/mcp/manifest.json`.
+- Web: `web_sota/` — React + Vite + Tailwind, 10 pages (TropeSearch, WorkBrowser, TropeGraph, Chat, Log, Ollama config, Pages browser, Settings, Help, Dashboard).
+- Crawler: `scraper/` — `crawler.py` (curl_cffi + warmup), `db.py` (SQLite schema + FTS5), `scheduler.py` (APScheduler), `extractor.py` (Ollama async), `parser.py` (BeautifulSoup).
+- Docs: `README.md`, `INSTALL.md`, `docs/` (architecture, scraper, tools, API, cross-MCP, ethics).
+- Fleet: `glama.json`, `justfile` recipes.
+
+## Security
+
+- All data is local. No external API calls during querying.
+- Extraction runs via local Ollama instance — zero data leaves your machine.
+- Scraper respects Cloudflare blocks with exponential backoff.
+- No authentication bypass, no restricted content access.
+
+## Key design
+
+- curl_cffi with Chrome 131 impersonation — passes Cloudflare free tier
+- 8–15s randomised delay, 7K pages/day cap, session warmup (homepage fetch)
+- SQLite WAL mode for concurrent scraper + reader access
+- FTS5 full-text search across tropes (porter + unicode61 tokenizer)
+- LanceDB vector store for semantic search via Ollama nomic-embed-text
+- Cross-MCP bridge: other fleet apps link via `?lookup=Namespace/PageName`
+
+## MCP tools (12)
+
+`trope_search`, `trope_get`, `work_tropes`, `trope_examples`, `related_tropes`, `namespace_list`, `random_trope`, `scraper_status`, `semantic_search`, `trope_lookup_by_title`, `calibre_search`, `calibre_status`.

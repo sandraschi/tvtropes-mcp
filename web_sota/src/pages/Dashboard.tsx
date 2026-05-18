@@ -1,21 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
 import {
+  ArrowRight,
   BookOpen,
   Globe,
   Layers,
   Lightbulb,
-  Play,
-  Square,
-  RefreshCw,
-  Search,
-  ArrowRight,
   Loader2,
+  Play,
+  Search,
+  Square,
 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { apiGet, apiPost } from "@/api/client";
+import { PageHero } from "@/components/layout/PageHero";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { PageHero } from "@/components/layout/PageHero";
 
 type Health = { status: string; service: string };
 type ScraperInfo = {
@@ -162,11 +161,17 @@ export function Dashboard() {
             className="h-10 rounded-md border border-input bg-background/60 px-3 text-sm"
           >
             {[1, 2, 3].map((d) => (
-              <option key={d} value={d}>Depth {d}</option>
+              <option key={d} value={d}>
+                Depth {d}
+              </option>
             ))}
           </select>
           <Button onClick={runCrawl} disabled={crawlRunning || !crawlUrl.trim()}>
-            {crawlRunning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ArrowRight className="h-4 w-4 mr-1" />}
+            {crawlRunning ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+            ) : (
+              <ArrowRight className="h-4 w-4 mr-1" />
+            )}
             Crawl
           </Button>
         </div>
@@ -175,7 +180,7 @@ export function Dashboard() {
             {crawlError}
           </div>
         )}
-        {crawlResult && crawlResult.success && (
+        {crawlResult?.success && (
           <div className="text-sm mt-2 space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-primary font-medium">
@@ -186,10 +191,22 @@ export function Dashboard() {
               </span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div><span className="text-muted-foreground">Visited</span><p className="font-medium">{crawlResult.pages_visited}</p></div>
-              <div><span className="text-muted-foreground">Links found</span><p className="font-medium">{crawlResult.links_found ?? 0}</p></div>
-              <div><span className="text-muted-foreground">Queued</span><p className="font-medium">{crawlResult.urls_queued}</p></div>
-              <div><span className="text-muted-foreground">Depth</span><p className="font-medium">{crawlResult.depth}</p></div>
+              <div>
+                <span className="text-muted-foreground">Visited</span>
+                <p className="font-medium">{crawlResult.pages_visited}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Links found</span>
+                <p className="font-medium">{crawlResult.links_found ?? 0}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Queued</span>
+                <p className="font-medium">{crawlResult.urls_queued}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Depth</span>
+                <p className="font-medium">{crawlResult.depth}</p>
+              </div>
             </div>
             {crawlResult.sample_links && crawlResult.sample_links.length > 0 && (
               <div>
@@ -205,12 +222,12 @@ export function Dashboard() {
             )}
             {crawlResult.next_steps && crawlResult.next_steps.length > 0 && (
               <div className="text-xs text-green-400 space-y-0.5">
-                {crawlResult.next_steps.map((s, i) => <p key={i}>{s}</p>)}
+                {crawlResult.next_steps.map((s, i) => (
+                  <p key={i}>{s}</p>
+                ))}
               </div>
             )}
-            {crawlResult.note && (
-              <p className="text-xs text-amber-400">{crawlResult.note}</p>
-            )}
+            {crawlResult.note && <p className="text-xs text-amber-400">{crawlResult.note}</p>}
           </div>
         )}
       </Card>
@@ -221,7 +238,9 @@ export function Dashboard() {
           <p className="text-2xl font-semibold mt-1">{health?.status ?? "…"}</p>
         </Card>
         <Card>
-          <CardTitle className="text-sm text-muted-foreground font-normal">Tropes indexed</CardTitle>
+          <CardTitle className="text-sm text-muted-foreground font-normal">
+            Tropes indexed
+          </CardTitle>
           <p className="text-2xl font-semibold mt-1">{status?.db.tropes ?? "—"}</p>
         </Card>
         <Card>
@@ -246,20 +265,49 @@ export function Dashboard() {
           <Button size="sm" onClick={startScraper} disabled={s?.state === "running"}>
             <Play className="h-4 w-4 mr-1" /> Start
           </Button>
-          <Button size="sm" variant="secondary" onClick={stopScraper} disabled={s?.state !== "running"}>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={stopScraper}
+            disabled={s?.state !== "running"}
+          >
             <Square className="h-4 w-4 mr-1" /> Stop
           </Button>
         </div>
         {s && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 text-sm">
-            <div><span className="text-muted-foreground">State</span><p className="font-medium">{s.state}</p></div>
-            <div><span className="text-muted-foreground">Pending</span><p className="font-medium">{s.pending}</p></div>
-            <div><span className="text-muted-foreground">Crawled</span><p className="font-medium">{s.crawled}</p></div>
-            <div><span className="text-muted-foreground">Extracted</span><p className="font-medium">{s.extracted}</p></div>
-            <div><span className="text-muted-foreground">Failed</span><p className="font-medium">{s.failed}</p></div>
-            <div><span className="text-muted-foreground">Blocked</span><p className="font-medium">{s.blocked}</p></div>
-            <div><span className="text-muted-foreground">Skipped</span><p className="font-medium">{s.skipped}</p></div>
-            <div><span className="text-muted-foreground">Today</span><p className="font-medium">{s.daily}</p></div>
+            <div>
+              <span className="text-muted-foreground">State</span>
+              <p className="font-medium">{s.state}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Pending</span>
+              <p className="font-medium">{s.pending}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Crawled</span>
+              <p className="font-medium">{s.crawled}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Extracted</span>
+              <p className="font-medium">{s.extracted}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Failed</span>
+              <p className="font-medium">{s.failed}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Blocked</span>
+              <p className="font-medium">{s.blocked}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Skipped</span>
+              <p className="font-medium">{s.skipped}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Today</span>
+              <p className="font-medium">{s.daily}</p>
+            </div>
           </div>
         )}
         {scraperMsg && <p className="text-sm text-primary mt-2">{scraperMsg}</p>}
@@ -272,10 +320,26 @@ export function Dashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {[
-          { label: "Trope Search", desc: "Full-text FTS5 search across indexed tropes.", icon: Lightbulb },
-          { label: "Work Browser", desc: "Browse all tropes for films, series, books, games.", icon: BookOpen },
-          { label: "Trope Graph", desc: "Traverse SubTrope, SuperTrope, SisterTrope.", icon: Layers },
-          { label: "Namespaces", desc: "Filter by medium — Film, Anime, Literature, etc.", icon: Globe },
+          {
+            label: "Trope Search",
+            desc: "Full-text FTS5 search across indexed tropes.",
+            icon: Lightbulb,
+          },
+          {
+            label: "Work Browser",
+            desc: "Browse all tropes for films, series, books, games.",
+            icon: BookOpen,
+          },
+          {
+            label: "Trope Graph",
+            desc: "Traverse SubTrope, SuperTrope, SisterTrope.",
+            icon: Layers,
+          },
+          {
+            label: "Namespaces",
+            desc: "Filter by medium — Film, Anime, Literature, etc.",
+            icon: Globe,
+          },
         ].map((t) => (
           <div key={t.label}>
             <Card className="h-full">

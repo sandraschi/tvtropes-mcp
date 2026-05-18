@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
 import { BookOpen, Globe, Layers, Loader2 } from "lucide-react";
-import { apiGet, apiMcpTool } from "@/api/client";
+import { useCallback, useEffect, useState } from "react";
+import { apiMcpTool } from "@/api/client";
 import { Card, CardTitle } from "@/components/ui/card";
 
 type NamespaceInfo = { namespace: string; page_count: number };
@@ -15,9 +15,19 @@ type WorkTropesResp = {
 };
 
 const WORK_NAMESPACES = [
-  "Film", "Series", "Anime", "Literature", "VideoGame",
-  "WesternAnimation", "Music", "ComicBook", "Webcomic",
-  "WebOriginal", "Theatre", "VisualNovel", "Manga",
+  "Film",
+  "Series",
+  "Anime",
+  "Literature",
+  "VideoGame",
+  "WesternAnimation",
+  "Music",
+  "ComicBook",
+  "Webcomic",
+  "WebOriginal",
+  "Theatre",
+  "VisualNovel",
+  "Manga",
 ];
 
 export function WorkBrowser() {
@@ -31,17 +41,21 @@ export function WorkBrowser() {
       try {
         const r = await apiMcpTool<NamespaceResp>("namespace_list");
         if (r.success) setNamespaces(r.namespaces);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       setLoading(false);
     })();
   }, []);
 
-  const browseWork = useCallback(async (namespace: string, pageName: string) => {
+  const _browseWork = useCallback(async (namespace: string, pageName: string) => {
     const id = `${namespace}/${pageName}`;
     try {
       const r = await apiMcpTool<WorkTropesResp>("work_tropes", { work_id: id });
       if (r.success) setWorks(r.tropes);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   return (
@@ -103,7 +117,9 @@ export function WorkBrowser() {
                 <Layers className="h-4 w-4 text-primary shrink-0" />
                 <div>
                   <CardTitle className="text-sm">{t.title || t.trope_name}</CardTitle>
-                  <p className="text-xs text-muted-foreground">{t.trope_ns}/{t.trope_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t.trope_ns}/{t.trope_name}
+                  </p>
                 </div>
               </div>
             </Card>

@@ -1,13 +1,12 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   BookMarked,
   Brain,
+  FileText,
   HelpCircle,
   Home,
   Layers,
   Library,
   Lightbulb,
-  FileText,
   List,
   Menu,
   MessageSquare,
@@ -15,9 +14,10 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { LoggerPanel } from "@/components/layout/LoggerPanel";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const nav = [
   { to: "/dashboard", label: "Home", icon: Home },

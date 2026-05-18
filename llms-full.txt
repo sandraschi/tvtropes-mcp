@@ -1,0 +1,91 @@
+# tvtropes-mcp — full LLM reference
+
+> Long-form index for agents. Short index: `llms.txt` (same repo).
+
+## Identity
+
+- **Name:** tvtropes-mcp
+- **Version:** 0.2.0
+- **Stack:** FastMCP 3.2+, Python 3.11+, uv, curl-cffi, APScheduler, BeautifulSoup4, lxml, SQLite FTS5, LanceDB, Ollama, React/Vite dashboard (`web_sota/`, ports **10964** backend / **10965** frontend).
+- **Transports:** stdio (`python -m tvtropes_mcp --stdio`) and streamable HTTP (`--serve`, FastMCP `http_app` at `/mcp`). Discovery: `GET http://127.0.0.1:10964/.well-known/mcp/manifest.json` (dual-transport JSON).
+- **Dashboard REST:** `GET /api/health`, `POST /api/mcp/tool`, `POST /api/scraper/crawl`, `GET /api/pages`, `GET /api/lookup/title`, `GET /api/bridge`. Vite dev proxies `/api` and `/mcp` to **10964**.
+- **Changelog:** `CHANGELOG.md`.
+
+## Tool surface (12 tools)
+
+All tools are `readOnlyHint` — the mirror is never modified by queries. Response format is `dict` with `success: bool`.
+
+| Tool | Args | Description |
+|------|------|-------------|
+| `trope_search` | `query`, `limit` | FTS5 full-text search over trope names and descriptions |
+| `trope_get` | `trope_id` | Full trope: description, laconic, examples, sub/super/sister/related |
+| `work_tropes` | `work_id` | All tropes for a work (e.g. `Series/BreakingBad`) |
+| `trope_examples` | `trope_id`, `namespace?`, `limit` | Examples filtered by medium |
+| `related_tropes` | `trope_id` | Graph traversal: SubTrope, SuperTrope, SisterTrope, Related |
+| `namespace_list` | — | Namespaces with page counts |
+| `random_trope` | — | Random trope weighted by example count |
+| `scraper_status` | — | Crawl progress, DB size, Ollama backlog |
+| `semantic_search` | `query`, `limit` | Vector similarity via LanceDB + Ollama embeddings |
+| `trope_lookup_by_title` | `title` | Book title → Literature/ namespace cross-ref |
+| `calibre_search` | `title?`, `author?`, `limit` | Search local Calibre library |
+| `calibre_status` | — | Detect Calibre library |
+
+## REST API endpoints
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/health` | Backend health |
+| GET | `/api/status` | Crawl stats + DB stats |
+| GET | `/api/tools` | Registered MCP tools |
+| POST | `/api/mcp/tool` | Call any MCP tool by name+args |
+| GET | `/api/mcp/tools` | Tool JSON schemas |
+| POST | `/api/scraper/start` | Start background crawler |
+| POST | `/api/scraper/stop` | Stop background crawler |
+| GET | `/api/scraper/status` | Scraper process health |
+| POST | `/api/scraper/extract` | Run one Ollama extraction pass |
+| POST | `/api/scraper/bootstrap` | Seed URL queue from sitemap |
+| POST | `/api/scraper/crawl` | Crawl from URL with depth limit |
+| GET | `/api/pages` | List crawled pages |
+| GET | `/api/pages/{id}/content` | View cached page body |
+| GET | `/api/calibre/status` | Calibre library detection |
+| GET | `/api/calibre/search` | Search Calibre books |
+| GET | `/api/bridge` | Fleet bridge metadata |
+| GET | `/api/lookup/title` | Resolve title to page path |
+| GET | `/api/settings` | User settings |
+| POST | `/api/settings` | Update settings |
+| GET | `/api/ollama/status` | Ollama connectivity |
+| POST | `/api/ollama/test` | Test host+model combo |
+| GET | `/api/log` | Recent log entries |
+| GET | `/api/vector/count` | LanceDB vector count |
+| POST | `/api/vector/rebuild` | Rebuild vector index |
+
+## Crawler design
+
+- curl_cffi with `impersonate="chrome131"`, `default_headers=False`, explicit User-Agent + Sec-CH-UA + Sec-Fetch-* headers
+- Session warmup: fetches homepage first to establish Cloudflare cookies before crawling
+- 8–15s randomised delay, 7,000 pages/day hard cap
+- Gzip-compressed HTML cache organised by SHA-256 prefix (`cache/{prefix2}/{hash}.html.gz`)
+- Cloudflare block detection on response body (HTTP 200 with challenge page)
+- Exponential backoff: 30 min → 2h → 4h on block detection
+- BeautifulSoup link extraction, depth-limited BFS in crawl endpoint
+
+## Storage
+
+- SQLite WAL mode: `data/tvtropes.db` (pages, tropes, examples, trope_relations, work_tropes, tropes_fts, crawl_log)
+- LanceDB: `data/lancedb/tropes` (768-dim float embeddings via nomic-embed-text)
+- Settings: `data/settings.json` (user-editable, overrides env vars)
+- HTML cache: `scraper/cache/` (~15–25 GB for full corpus)
+
+## Cross-MCP bridge
+
+Other fleet apps link to TVTropes pages via `?lookup=Namespace/PageName`:
+- `http://127.0.0.1:10965/?lookup=Film/TheMatrix`
+- `http://127.0.0.1:10965/?lookup=Anime/NeonGenesisEvangelion`
+- `GET /api/lookup/title?title=Matrix&hint=movie` → title resolution
+
+## Ethics
+
+- All TVTropes content is CC BY-SA 3.0. Mirror database inherits this license.
+- Code is MIT.
+- Scraper respects Cloudflare blocks, never bypasses authentication, never accesses restricted content.
+- See `docs/ETHICS_AND_LEGAL.md` for full discussion.

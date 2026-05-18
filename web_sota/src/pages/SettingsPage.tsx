@@ -1,10 +1,10 @@
+import { Brain, Gauge, Globe, HardDrive, Loader2, Save } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Globe, HardDrive, Brain, Gauge, Save, Loader2 } from "lucide-react";
 import { apiGet, apiPost } from "@/api/client";
+import { PageHero } from "@/components/layout/PageHero";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { PageHero } from "@/components/layout/PageHero";
 
 type Settings = {
   host: string;
@@ -38,11 +38,15 @@ export function SettingsPage() {
         scraper_delay_max: String(s.scraper_delay_max),
         scraper_daily_budget: String(s.scraper_daily_budget),
       });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchSettings(); }, [fetchSettings]);
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   const save = async () => {
     setSaving(true);
@@ -54,7 +58,7 @@ export function SettingsPage() {
         ollama_timeout: parseFloat(edits.ollama_timeout) || 120,
         scraper_delay_min: parseFloat(edits.scraper_delay_min) || 8,
         scraper_delay_max: parseFloat(edits.scraper_delay_max) || 15,
-        scraper_daily_budget: parseInt(edits.scraper_daily_budget) || 7000,
+        scraper_daily_budget: parseInt(edits.scraper_daily_budget, 10) || 7000,
       });
       setMsg("Settings saved.");
       fetchSettings();
@@ -75,7 +79,11 @@ export function SettingsPage() {
         lead="Runtime settings are persisted to data/settings.json and override environment variables."
       >
         <Button size="sm" onClick={save} disabled={saving || !settings}>
-          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+          ) : (
+            <Save className="h-4 w-4 mr-1" />
+          )}
           Save
         </Button>
         {msg && <span className="text-sm text-primary ml-2">{msg}</span>}
@@ -103,8 +111,12 @@ export function SettingsPage() {
               <HardDrive className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <div className="min-w-0 flex-1">
                 <CardTitle>Data directory</CardTitle>
-                <p className="text-sm text-muted-foreground mt-2 break-all font-mono">{settings.data_dir}</p>
-                <p className="text-xs text-muted-foreground mt-1">Set via <code className="text-primary">TVTROPES_MCP_DATA_DIR</code> env var.</p>
+                <p className="text-sm text-muted-foreground mt-2 break-all font-mono">
+                  {settings.data_dir}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Set via <code className="text-primary">TVTROPES_MCP_DATA_DIR</code> env var.
+                </p>
               </div>
             </div>
           </Card>
@@ -117,15 +129,28 @@ export function SettingsPage() {
                 <CardTitle>Ollama / LM Studio</CardTitle>
                 <div>
                   <label className="text-xs text-muted-foreground">Host URL</label>
-                  <Input value={edits.ollama_host ?? ""} onChange={(e) => set("ollama_host", e.target.value)} className="mt-1" />
+                  <Input
+                    value={edits.ollama_host ?? ""}
+                    onChange={(e) => set("ollama_host", e.target.value)}
+                    className="mt-1"
+                  />
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">Model</label>
-                  <Input value={edits.ollama_model ?? ""} onChange={(e) => set("ollama_model", e.target.value)} className="mt-1" />
+                  <Input
+                    value={edits.ollama_model ?? ""}
+                    onChange={(e) => set("ollama_model", e.target.value)}
+                    className="mt-1"
+                  />
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">Timeout (seconds)</label>
-                  <Input value={edits.ollama_timeout ?? ""} onChange={(e) => set("ollama_timeout", e.target.value)} className="mt-1" type="number" />
+                  <Input
+                    value={edits.ollama_timeout ?? ""}
+                    onChange={(e) => set("ollama_timeout", e.target.value)}
+                    className="mt-1"
+                    type="number"
+                  />
                 </div>
               </div>
             </div>
@@ -140,15 +165,30 @@ export function SettingsPage() {
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs text-muted-foreground">Min delay (s)</label>
-                    <Input value={edits.scraper_delay_min ?? ""} onChange={(e) => set("scraper_delay_min", e.target.value)} className="mt-1" type="number" />
+                    <Input
+                      value={edits.scraper_delay_min ?? ""}
+                      onChange={(e) => set("scraper_delay_min", e.target.value)}
+                      className="mt-1"
+                      type="number"
+                    />
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">Max delay (s)</label>
-                    <Input value={edits.scraper_delay_max ?? ""} onChange={(e) => set("scraper_delay_max", e.target.value)} className="mt-1" type="number" />
+                    <Input
+                      value={edits.scraper_delay_max ?? ""}
+                      onChange={(e) => set("scraper_delay_max", e.target.value)}
+                      className="mt-1"
+                      type="number"
+                    />
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">Daily budget</label>
-                    <Input value={edits.scraper_daily_budget ?? ""} onChange={(e) => set("scraper_daily_budget", e.target.value)} className="mt-1" type="number" />
+                    <Input
+                      value={edits.scraper_daily_budget ?? ""}
+                      onChange={(e) => set("scraper_daily_budget", e.target.value)}
+                      className="mt-1"
+                      type="number"
+                    />
                   </div>
                 </div>
               </div>

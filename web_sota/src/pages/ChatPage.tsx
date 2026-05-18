@@ -1,10 +1,10 @@
+import { Brain, Loader2, MessageSquare, Send, User } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { MessageSquare, Send, Loader2, Brain, User } from "lucide-react";
 import { apiMcpTool, apiPost } from "@/api/client";
+import { PageHero } from "@/components/layout/PageHero";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { PageHero } from "@/components/layout/PageHero";
 import { cn } from "@/lib/utils";
 
 type Message = {
@@ -46,7 +46,10 @@ export function ChatPage() {
       if (endpoint === "ollama" && ollamaOk) {
         const r = await apiPost<{ response: string }>("/api/ollama/chat", {
           model: "qwen2.5:27b",
-          messages: [...messages.map((m) => ({ role: m.role, content: m.text })), { role: "user", content: userMsg }],
+          messages: [
+            ...messages.map((m) => ({ role: m.role, content: m.text })),
+            { role: "user", content: userMsg },
+          ],
         });
         setMessages((prev) => [...prev, { role: "assistant", text: r.response }]);
       } else {
@@ -59,21 +62,30 @@ export function ChatPage() {
         } else if (cmd.includes("random")) {
           result = await apiMcpTool("random_trope", {});
         } else if (cmd.startsWith("trope_get") || !cmd.includes(" ")) {
-          const id = userMsg.includes("/") ? userMsg.trim() : `Main/${userMsg.trim().replace(/\s+/g, "")}`;
+          const id = userMsg.includes("/")
+            ? userMsg.trim()
+            : `Main/${userMsg.trim().replace(/\s+/g, "")}`;
           result = await apiMcpTool("trope_get", { trope_id: id });
         } else if (cmd.includes("status") || cmd.includes("scraper")) {
           result = await apiMcpTool("scraper_status", {});
         } else if (cmd.includes("work") || cmd.includes("series") || cmd.includes("film")) {
           const parts = userMsg.split(" ");
-          const ns = parts.find((p) => ["film", "series", "anime", "literature"].includes(p.toLowerCase()));
+          const ns = parts.find((p) =>
+            ["film", "series", "anime", "literature"].includes(p.toLowerCase()),
+          );
           const name = parts.filter((p) => p !== ns).join("");
           result = await apiMcpTool("work_tropes", { work_id: `${ns ?? "Film"}/${name}` });
         }
-        const text = result.success ? JSON.stringify(result, null, 2).slice(0, 2000) : "Could not process that request.";
+        const text = result.success
+          ? JSON.stringify(result, null, 2).slice(0, 2000)
+          : "Could not process that request.";
         setMessages((prev) => [...prev, { role: "assistant", text }]);
       }
     } catch (e) {
-      setMessages((prev) => [...prev, { role: "assistant", text: `Error: ${e instanceof Error ? e.message : String(e)}` }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: `Error: ${e instanceof Error ? e.message : String(e)}` },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -94,7 +106,9 @@ export function ChatPage() {
           <button
             onClick={() => setEndpoint("mcp")}
             className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-              endpoint === "mcp" ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"
+              endpoint === "mcp"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "border-border hover:border-primary/40"
             }`}
           >
             <MessageSquare className="h-3 w-3 inline mr-1" /> MCP Tools
@@ -102,7 +116,9 @@ export function ChatPage() {
           <button
             onClick={() => setEndpoint("ollama")}
             className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-              endpoint === "ollama" ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"
+              endpoint === "ollama"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "border-border hover:border-primary/40"
             }`}
           >
             <Brain className="h-3 w-3 inline mr-1" />
@@ -113,11 +129,13 @@ export function ChatPage() {
 
       <div className="h-[50vh] overflow-y-auto space-y-3 px-1">
         {messages.map((m, i) => (
-          <div key={i} className={cn("flex gap-3", m.role === "user" ? "justify-end" : "justify-start")}>
-            <Card className={cn(
-              "max-w-[80%] p-3",
-              m.role === "user" ? "bg-primary/10" : "bg-card/60",
-            )}>
+          <div
+            key={i}
+            className={cn("flex gap-3", m.role === "user" ? "justify-end" : "justify-start")}
+          >
+            <Card
+              className={cn("max-w-[80%] p-3", m.role === "user" ? "bg-primary/10" : "bg-card/60")}
+            >
               <div className="flex items-center gap-2 mb-1">
                 {m.role === "assistant" ? (
                   <Brain className="h-3.5 w-3.5 text-primary" />
@@ -126,7 +144,9 @@ export function ChatPage() {
                 )}
                 <span className="text-[10px] text-muted-foreground uppercase">{m.role}</span>
               </div>
-              <pre className="text-sm whitespace-pre-wrap font-sans text-foreground/90">{m.text}</pre>
+              <pre className="text-sm whitespace-pre-wrap font-sans text-foreground/90">
+                {m.text}
+              </pre>
             </Card>
           </div>
         ))}

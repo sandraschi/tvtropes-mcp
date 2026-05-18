@@ -1,8 +1,8 @@
-import { useCallback, useState } from "react";
 import { Layers, Loader2, Search } from "lucide-react";
-import { apiGet, apiMcpTool } from "@/api/client";
+import { useCallback, useState } from "react";
+import { apiMcpTool } from "@/api/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 type RelationGroup = {
@@ -55,19 +55,21 @@ export function TropeGraph() {
     }
   }, []);
 
-  const navigate = useCallback((t: Trope) => {
-    const id = `${t.namespace}/${t.page_name}`;
-    setTropeId(id);
-    loadTrope(id);
-  }, [loadTrope]);
+  const navigate = useCallback(
+    (t: Trope) => {
+      const id = `${t.namespace}/${t.page_name}`;
+      setTropeId(id);
+      loadTrope(id);
+    },
+    [loadTrope],
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && tropeId.trim()) loadTrope(tropeId.trim());
   };
 
   const allRelations = graph
-    ? (Object.keys(REL_COLORS) as (keyof RelationGroup)[])
-        .filter((key) => graph[key].length > 0)
+    ? (Object.keys(REL_COLORS) as (keyof RelationGroup)[]).filter((key) => graph[key].length > 0)
     : [];
 
   return (
@@ -97,7 +99,10 @@ export function TropeGraph() {
           {history.map((h) => (
             <button
               key={h}
-              onClick={() => { setTropeId(h); loadTrope(h); }}
+              onClick={() => {
+                setTropeId(h);
+                loadTrope(h);
+              }}
               className="text-xs bg-muted/40 px-2 py-1 rounded hover:bg-primary/20"
             >
               {h}
@@ -107,7 +112,9 @@ export function TropeGraph() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm">{error}</div>
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm">
+          {error}
+        </div>
       )}
 
       {graph && (
@@ -122,7 +129,9 @@ export function TropeGraph() {
           <div className="grid gap-4 sm:grid-cols-2">
             {allRelations.map((key) => (
               <div key={key} className={`border-l-4 rounded-lg p-3 ${REL_COLORS[key]}`}>
-                <h3 className="text-sm font-medium mb-2">{REL_LABELS[key]} ({graph[key].length})</h3>
+                <h3 className="text-sm font-medium mb-2">
+                  {REL_LABELS[key]} ({graph[key].length})
+                </h3>
                 <div className="flex flex-wrap gap-1.5">
                   {graph[key].map((t: Trope) => (
                     <button

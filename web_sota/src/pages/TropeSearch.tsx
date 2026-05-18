@@ -1,5 +1,5 @@
+import { BookOpen, Loader2, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Search, Loader2, BookOpen, Layers } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { apiMcpTool } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -85,14 +85,14 @@ export function TropeSearch() {
 
   // Auto-load trope from ?trope= URL param (cross-app deep-linking)
   useEffect(() => {
-    if (initialTrope && initialTrope.includes("/")) {
+    if (initialTrope?.includes("/")) {
       openTrope(initialTrope);
     } else if (initialTrope) {
       doSearch();
     }
     // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [openTrope, initialTrope.includes, doSearch, initialTrope]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") doSearch();
@@ -116,7 +116,11 @@ export function TropeSearch() {
           className="flex-1"
         />
         <Button onClick={doSearch} disabled={loading || !query.trim()}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Search className="h-4 w-4 mr-1" />}
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+          ) : (
+            <Search className="h-4 w-4 mr-1" />
+          )}
           Search
         </Button>
       </div>
@@ -130,14 +134,12 @@ export function TropeSearch() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-3">
           {total > 0 && (
-            <p className="text-sm text-muted-foreground">{total} results for "{query}"</p>
+            <p className="text-sm text-muted-foreground">
+              {total} results for "{query}"
+            </p>
           )}
           {results.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => openTrope(r.id)}
-              className="w-full text-left"
-            >
+            <button key={r.id} onClick={() => openTrope(r.id)} className="w-full text-left">
               <Card className="hover:border-primary/40 transition-colors cursor-pointer">
                 <div className="flex items-start gap-2">
                   <BookOpen className="h-5 w-5 text-primary shrink-0 mt-0.5" />
@@ -159,9 +161,13 @@ export function TropeSearch() {
               </Card>
             </button>
           ))}
-          {loading && <p className="text-sm text-muted-foreground text-center py-4">Searching...</p>}
+          {loading && (
+            <p className="text-sm text-muted-foreground text-center py-4">Searching...</p>
+          )}
           {!loading && total === 0 && query && !error && (
-            <p className="text-sm text-muted-foreground text-center py-4">No results. Try a different query.</p>
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No results. Try a different query.
+            </p>
           )}
         </div>
 
@@ -172,9 +178,7 @@ export function TropeSearch() {
               {selected.laconic && (
                 <p className="text-sm text-muted-foreground italic mt-2">"{selected.laconic}"</p>
               )}
-              {selected.description && (
-                <p className="text-sm mt-2">{selected.description}</p>
-              )}
+              {selected.description && <p className="text-sm mt-2">{selected.description}</p>}
               <p className="text-[10px] text-muted-foreground mt-2">{selected.id}</p>
             </Card>
 

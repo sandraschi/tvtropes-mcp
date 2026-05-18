@@ -1,17 +1,24 @@
 import { useEffect } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
-import { LoggerProvider } from "@/context/LoggerContext";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { LoggerProvider } from "@/context/LoggerContext";
+import { ChatPage } from "@/pages/ChatPage";
 import { Dashboard } from "@/pages/Dashboard";
-import { TropeSearch } from "@/pages/TropeSearch";
-import { WorkBrowser } from "@/pages/WorkBrowser";
-import { TropeGraph } from "@/pages/TropeGraph";
-import { SettingsPage } from "@/pages/SettingsPage";
 import { HelpPage } from "@/pages/HelpPage";
 import { LogPage } from "@/pages/LogPage";
-import { ChatPage } from "@/pages/ChatPage";
 import { OllamaPage } from "@/pages/OllamaPage";
 import { PagesPage } from "@/pages/PagesPage";
+import { SettingsPage } from "@/pages/SettingsPage";
+import { TropeGraph } from "@/pages/TropeGraph";
+import { TropeSearch } from "@/pages/TropeSearch";
+import { WorkBrowser } from "@/pages/WorkBrowser";
 
 /** Reads ?lookup=Namespace/PageName and redirects to /search?trope=... */
 function LookupRedirect() {

@@ -1,0 +1,92 @@
+{
+  "$schema": "https://glama.ai/schemas/mcp.json",
+  "name": "tvtropes-mcp",
+  "version": "0.2.0",
+  "description": "TVTropes local mirror: polite curl_cffi crawler, SQLite FTS5 storage, LanceDB vector search, 12 FastMCP tools, React dashboard (10964/10965), Calibre cross-reference.",
+  "author": "Sandra Schieder",
+  "license": "MIT",
+  "language": "python",
+  "framework": "fastmcp",
+  "type": "mcp_server",
+  "status": "alpha",
+  "transport": ["stdio", "http"],
+  "keywords": [
+    "tvtropes",
+    "mcp",
+    "fastmcp",
+    "fastmcp-3.2",
+    "dual-transport",
+    "streamable-http",
+    "web-scraping",
+    "curl-cffi",
+    "ollama",
+    "sqlite",
+    "fts5",
+    "lancedb",
+    "rag",
+    "semantic-search",
+    "vite",
+    "react",
+    "calibre",
+    "fleet"
+  ],
+  "categories": ["Developer Tools", "Knowledge Base", "AI Agents", "Web Applications", "Creative Writing"],
+  "homepage": "https://github.com/sandraschi/tvtropes-mcp",
+  "repository": {
+    "url": "https://github.com/sandraschi/tvtropes-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "github",
+      "identifier": "sandraschi/tvtropes-mcp",
+      "transport": {
+        "type": "stdio",
+        "command": "uv",
+        "args": ["run", "python", "-m", "tvtropes_mcp", "--stdio"]
+      }
+    },
+    {
+      "registryType": "github",
+      "identifier": "sandraschi/tvtropes-mcp",
+      "transport": {
+        "type": "http",
+        "url": "http://127.0.0.1:10964/mcp"
+      }
+    }
+  ],
+  "mcpServers": {
+    "tvtropes-mcp": {
+      "name": "tvtropes-mcp",
+      "command": "uv",
+      "args": ["run", "python", "-m", "tvtropes_mcp", "--stdio"],
+      "env": {},
+      "description": "Stdio MCP (default for Claude Desktop / Cursor).",
+      "capabilities": {
+        "tools": { "enabled": true, "listChanged": true },
+        "resources": { "enabled": false },
+        "prompts": { "enabled": false },
+        "webapp": {
+          "enabled": true,
+          "url": "http://127.0.0.1:10965",
+          "api_url": "http://127.0.0.1:10964"
+        }
+      }
+    },
+    "tvtropes-mcp-http": {
+      "name": "tvtropes-mcp-http",
+      "url": "http://127.0.0.1:10964/mcp",
+      "description": "Streamable HTTP MCP (FastMCP http_app). Requires: uv run python -m tvtropes_mcp --serve",
+      "capabilities": {
+        "tools": { "enabled": true, "listChanged": true },
+        "resources": { "enabled": false },
+        "prompts": { "enabled": false },
+        "webapp": {
+          "enabled": true,
+          "url": "http://127.0.0.1:10965",
+          "api_url": "http://127.0.0.1:10964"
+        }
+      }
+    }
+  }
+}
