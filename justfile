@@ -36,10 +36,20 @@ web-build:
     cd web_sota && npm run build
 
 web-lint:
-    cd web_sota && biome lint src/
+    cd web_sota && npx biome lint src/
 
 web-fmt:
-    cd web_sota && biome check --write src/
+    cd web_sota && npx biome check --write src/
+
+web-ci:
+    cd web_sota && npx biome ci src/
+
+# ─── CI (matches .github/workflows/ci.yml) ────────────────────────────
+ci: _check-venv lint format-check test web-ci web-build
+    Write-Host "CI pipeline passed" -ForegroundColor Green
+
+format-check: _check-venv
+    uv run ruff format --check src/ scraper/ tests/
 
 # ─── Housekeeping ──────────────────────────────────────────────────
 _check-venv:
@@ -52,4 +62,4 @@ clean:
     Remove-Item -Recurse -Force .venv, __pycache__, .pytest_cache, .ruff_cache -ErrorAction SilentlyContinue
     Get-ChildItem -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
 
-.PHONY: test test-all lint format typecheck serve stdio scrape web web-build web-lint web-fmt pre-commit clean
+.PHONY: test test-all lint format format-check typecheck ci serve stdio scrape web web-build web-lint web-fmt web-ci pre-commit clean
