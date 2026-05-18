@@ -118,13 +118,19 @@ async def api_mcp_tool(body: dict[str, Any]) -> dict[str, Any]:
     """Proxy: call an MCP tool by name and return its result as JSON."""
     import json
 
+    from fastmcp.exceptions import NotFoundError
     from tvtropes_mcp.server import mcp
 
     name = body.get("name", "")
     args = body.get("args", {})
     if not name:
         return {"success": False, "error": "Missing tool name"}
-    result = await mcp.call_tool(name, args)
+    try:
+        result = await mcp.call_tool(name, args)
+    except NotFoundError:
+        return {"success": False, "error": f"Unknown tool: {name!r}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
     if result.content:
         text = result.content[0].text
         return json.loads(text)
@@ -134,7 +140,6 @@ async def api_mcp_tool(body: dict[str, Any]) -> dict[str, Any]:
 @router.get("/mcp/tools")
 async def api_mcp_tools_list() -> list[dict[str, Any]]:
     """Proxy: list all registered MCP tools with their schemas."""
-
     from tvtropes_mcp.server import mcp
 
     tools = await mcp.list_tools()
@@ -142,7 +147,7 @@ async def api_mcp_tools_list() -> list[dict[str, Any]]:
         {
             "name": t.name,
             "description": t.description,
-            "inputSchema": t.inputSchema,
+            "inputSchema": getattr(t, "inputSchema", getattr(t, "input_model_json", None)),
         }
         for t in tools
     ]
