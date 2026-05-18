@@ -23,6 +23,10 @@ except ImportError:
     HAS_CURL = False
     log.warning("curl_cffi not available — crawler will use mock mode")
 
+# Chrome version to impersonate. Must match a version curl_cffi supports.
+# `chrome` = latest stable. Specific version = that exact TLS fingerprint.
+CHROME_IMPERSONATE = "chrome131"  # latest stable as of 2026-05
+
 
 class TvtropesCrawler:
     """Polite TVTropes scraper using curl_cffi for Chrome TLS impersonation."""
@@ -36,41 +40,36 @@ class TvtropesCrawler:
         self._last_fetch_time = 0.0
         self._daily_count = 0
         self._daily_date = time.strftime("%Y-%m-%d")
+        self._warmed_up = False
 
     def _ensure_session(self):
         if self._session is None:
             if HAS_CURL:
                 self._session = curl_requests.Session(
-                    impersonate="chrome120",
+                    impersonate=CHROME_IMPERSONATE,
                     default_headers=False,
                 )
             log.info("Created new curl_cffi session")
+            self._warmed_up = False
 
     def _apply_headers(self):
         if self._session is None:
             return
-        urls = [
-            TVTROPES_BASE,
-            f"{TVTROPES_BASE}/pmwiki/pmwiki.php/Main/Tropes",
-        ]
-        self._session.headers.update(
-            {
-                "Accept": self.config.accept,
-                "Accept-Language": self.config.accept_language,
-                "Accept-Encoding": self.config.accept_encoding,
-                "Referer": random.choice(urls),  # noqa: S311
-                "DNT": "1",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1",
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "same-origin",
-                "Sec-Fetch-User": "?1",
-                "Sec-CH-UA": '"Google Chrome";v="120", "Chromium";v="120", "Not?A_Brand";v="24"',
-                "Sec-CH-UA-Mobile": "?0",
-                "Sec-CH-UA-Platform": '"Windows"',
-            }
-        )
+        self._session.headers.update({
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "de-AT,de;q=0.9,en;q=0.8,ja;q=0.7",
+            "Accept-Encoding": "gzip, deflate, br",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+            "Sec-CH-UA": '"Google Chrome";v="131", "Chromium";v="131", "Not?A_Brand";v="24"',
+            "Sec-CH-UA-Mobile": "?0",
+            "Sec-CH-UA-Platform": '"Windows"',
+        })
 
     def _respect_delay(self):
         elapsed = time.time() - self._last_fetch_time
@@ -93,6 +92,50 @@ class TvtropesCrawler:
             self._daily_date = today
         return self._daily_count < self.config.daily_budget
 
+    def warmup(self) -> bool:
+        """Fetch the TVTropes homepage to establish cookies and a browsing context.
+
+        A brand-new session that immediately fetches a deep page (e.g.
+        Anime/Planetarian) is suspicious. Real users load the homepage first,
+        get cookies set, then navigate. Call this before the first real fetch.
+        Returns True if warmup succeeded.
+        """
+        if self._warmed_up:
+            return True
+        if not HAS_CURL:
+            self._warmed_up = True
+            return True
+
+        self._ensure_session()
+        self._apply_headers()
+
+        try:
+            # First request: no referer, Sec-Fetch-Site: none (direct navigation)
+            self._session.headers.update({
+                "Referer": TVTROPES_BASE,
+                "Sec-Fetch-Site": "none",
+            })
+            resp = self._session.get(TVTROPES_BASE, timeout=30)
+            if is_cloudflare_blocked(resp.text):
+                log.warning("Warmup blocked by Cloudflare — TVTropes may be behind enhanced protection")
+                self._warmed_up = False
+                return False
+            if resp.status_code == 200:
+                log.info("Session warmup successful (homepage loaded)")
+                self._warmed_up = True
+                self._last_fetch_time = time.time()
+                # Switch to same-origin for subsequent requests
+                self._session.headers.update({
+                    "Referer": TVTROPES_BASE,
+                    "Sec-Fetch-Site": "same-origin",
+                })
+                return True
+            log.warning(f"Warmup returned HTTP {resp.status_code}")
+            return False
+        except Exception as e:
+            log.warning(f"Warmup failed: {e}")
+            return False
+
     def fetch(self, url: str) -> dict[str, Any]:
         result: dict[str, Any] = {
             "success": False,
@@ -105,6 +148,20 @@ class TvtropesCrawler:
         if not self._check_daily_budget():
             result["error"] = "Daily budget exhausted"
             return result
+
+        # Auto-warmup on first real fetch if not already warmed up
+        if not self._warmed_up and HAS_CURL:
+            warmed = self.warmup()
+            if not warmed:
+                result["blocked"] = True
+                result["error"] = "Cloudflare block page detected during session warmup"
+                result["note"] = (
+                    "TVTropes is behind Cloudflare protection that blocked the initial "
+                    "homepage request. This is expected — the scraper does not attempt "
+                    "to bypass Cloudflare challenges. Try again later, or use the "
+                    "background scheduler which retries with exponential backoff."
+                )
+                return result
 
         self._respect_delay()
         self._ensure_session()
@@ -123,6 +180,11 @@ class TvtropesCrawler:
             if is_cloudflare_blocked(html):
                 result["blocked"] = True
                 result["error"] = "Cloudflare block page detected"
+                result["note"] = (
+                    "Cloudflare blocked this specific page request. This can happen "
+                    "even after a successful warmup for pages with enhanced protection. "
+                    "The scraper respects this and will not retry aggressively."
+                )
                 log.warning(f"Blocked by Cloudflare: {url}")
                 return result
 
