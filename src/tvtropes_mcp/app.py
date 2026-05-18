@@ -123,7 +123,6 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
             for url in current_level:
                 if url in visited:
                     continue
-                visited.add(url)
                 result = await loop.run_in_executor(None, crawler.fetch, url)
                 if not result["success"]:
                     reason = result.get("error", "unknown")
@@ -131,6 +130,7 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
                     if result.get("blocked"):
                         errors += 1
                     continue
+                visited.add(url)
                 if not result.get("html"):
                     continue
                 soup = BeautifulSoup(result["html"], "lxml")
