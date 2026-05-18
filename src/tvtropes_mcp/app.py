@@ -454,11 +454,29 @@ async def api_lookup_title(
 
 
 @router.get("/log")
-async def api_log(limit: int = 100) -> list[dict[str, Any]]:
-    """Return recent log entries from the scraper."""
-    from tvtropes_mcp.log_ring import get_recent
+async def api_log(
+    limit: int = 100,
+    level: str | None = None,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """Return recent log entries with optional level filter."""
+    from tvtropes_mcp.log_ring import get_recent as _get_recent
 
-    return get_recent(limit=limit)
+    entries = _get_recent(limit=limit, level=level, offset=offset)
+    return {
+        "entries": entries,
+        "total": len(entries),
+        "filters": {"level": level, "limit": limit, "offset": offset},
+    }
+
+
+@router.get("/log/export")
+async def api_log_export() -> dict[str, Any]:
+    """Export all in-memory log entries as JSON."""
+    from tvtropes_mcp.log_ring import export_json
+
+    entries = export_json()
+    return {"exported": len(entries), "entries": entries}
 
 
 @router.get("/pages")

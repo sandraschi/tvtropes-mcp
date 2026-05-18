@@ -1,17 +1,19 @@
-"""In-memory ring buffer for log entries — accessible via REST API."""
+"""In-memory ring buffer + file-based rotating log. Accessible via REST API."""
 
 from __future__ import annotations
 
 import logging
+import logging.handlers
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
 
 class LogRingHandler(logging.Handler):
     """A logging handler that keeps the last N records in a ring buffer."""
 
-    def __init__(self, capacity: int = 500) -> None:
+    def __init__(self, capacity: int = 2000) -> None:
         super().__init__()
         self.capacity = capacity
         self._lock = threading.Lock()
@@ -29,18 +31,54 @@ class LogRingHandler(logging.Handler):
             if len(self._buffer) > self.capacity:
                 self._buffer.pop(0)
 
-    def get_recent(self, limit: int = 100) -> list[dict[str, Any]]:
+    def get_recent(
+        self,
+        limit: int = 100,
+        level: str | None = None,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
         with self._lock:
-            return list(self._buffer[-limit:])
+            entries = list(self._buffer)
+            if level:
+                entries = [e for e in entries if e["level"] == level]
+            return entries[-(limit + offset) : len(entries) - offset if offset else None][-limit:]
 
 
 _ring = LogRingHandler()
 
 
-def install_log_ring() -> None:
+def install_log_ring(data_dir: str | Path | None = None) -> None:
+    """Install both the ring buffer handler and a rotating file handler."""
     root = logging.getLogger()
     root.addHandler(_ring)
 
+    if data_dir is None:
+        from tvtropes_mcp.config import load_settings
+        data_dir = load_settings().resolved_data_dir()
 
-def get_recent(limit: int = 100) -> list[dict[str, Any]]:
-    return _ring.get_recent(limit=limit)
+    log_dir = Path(data_dir) / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    file_handler = logging.handlers.RotatingFileHandler(
+        log_dir / "tvtropes.log",
+        maxBytes=10 * 1024 * 1024,  # 10 MB
+        backupCount=5,
+        encoding="utf-8",
+    )
+    file_handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    ))
+    root.addHandler(file_handler)
+
+
+def get_recent(
+    limit: int = 100,
+    level: str | None = None,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    return _ring.get_recent(limit=limit, level=level, offset=offset)
+
+
+def export_json() -> list[dict[str, Any]]:
+    return _ring.get_recent(limit=2000)
