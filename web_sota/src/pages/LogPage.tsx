@@ -50,14 +50,18 @@ export function LogPage() {
   const exportLogs = async () => {
     try {
       const data = await apiGet<{ exported: number; entries: LogEntry[] }>("/api/log/export");
-      const text = data.entries
-        .map((e) => `${e.ts} [${e.level.toUpperCase()}] ${e.name}: ${e.message}`)
-        .join("\n");
-      const blob = new Blob([text], { type: "text/plain" });
+      const csvRows = [
+        ["timestamp", "level", "module", "message"].join(","),
+        ...data.entries.map((e) =>
+          [e.ts, e.level.toUpperCase(), (e.name ?? "").split(".").slice(-1)[0] ?? "", `"${(e.message ?? "").replace(/"/g, '""')}"`].join(","),
+        ),
+      ];
+      const text = csvRows.join("\n");
+      const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `tvtropes-log-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.txt`;
+      a.download = `tvtropes-log-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch { /* ignore */ }
@@ -81,7 +85,7 @@ export function LogPage() {
             <RefreshCw className="h-4 w-4 mr-1" /> Refresh
           </Button>
           <Button size="sm" variant="outline" onClick={exportLogs}>
-            <Download className="h-4 w-4 mr-1" /> Export .txt
+            <Download className="h-4 w-4 mr-1" /> Export CSV
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setEntries([])}>
             <Trash2 className="h-4 w-4 mr-1" /> Clear
