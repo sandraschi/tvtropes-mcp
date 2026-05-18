@@ -4,19 +4,19 @@ default_shell := "powershell.exe"
 venv := ".venv\Scripts\python.exe"
 
 test: _check-venv
-    $(venv) -m pytest tests/ -v --tb=short
+    uv run python -m pytest tests/ -v --tb=short
 
 test-all: _check-venv
-    $(venv) -m pytest tests/ -v --tb=long -x
+    uv run python -m pytest tests/ -v --tb=long -x
 
 lint: _check-venv
-    ruff check src/ scraper/ tests/
+    uv run ruff check src/ scraper/ tests/
 
 format: _check-venv
-    ruff format src/ scraper/ tests/
+    uv run ruff format src/ scraper/ tests/
 
 typecheck: _check-venv
-    $(venv) -m mypy src/ --ignore-missing-imports
+    uv run python -m mypy src/ --ignore-missing-imports
 
 # ─── Scraper ───────────────────────────────────────────────────────
 serve: _check-venv
@@ -46,7 +46,7 @@ _check-venv:
     if (-not (Test-Path ".venv")) { uv sync --extra dev }
 
 pre-commit:
-    pre-commit run --all-files
+    uv run pre-commit run --all-files
 
 clean:
     Remove-Item -Recurse -Force .venv, __pycache__, .pytest_cache, .ruff_cache -ErrorAction SilentlyContinue
