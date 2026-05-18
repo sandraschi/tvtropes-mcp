@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -83,8 +84,8 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
 
     Accepts a full TVTropes URL or a short path like "Anime/Planetarian".
     Depth controls how many link-hops to follow (default 1 = only direct links).
+    Runs the synchronous crawler in a thread to avoid blocking the event loop.
     """
-    import time
 
     from bs4 import BeautifulSoup
 
@@ -94,6 +95,7 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
 
     raw = body.get("url", "").strip()
     depth = max(1, min(int(body.get("depth", 1)), 3))
+    loop = asyncio.get_running_loop()
 
     if not raw:
         return {"success": False, "error": "Missing url"}
@@ -111,6 +113,7 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
     crawler = TvtropesCrawler(config)
     visited: set[str] = set()
     queued = 0
+    errors = 0
 
     try:
         current_level = {raw}
@@ -121,8 +124,14 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
                 if url in visited:
                     continue
                 visited.add(url)
-                result = crawler.fetch(url)
-                if not result["success"] or not result["html"]:
+                result = await loop.run_in_executor(None, crawler.fetch, url)
+                if not result["success"]:
+                    reason = result.get("error", "unknown")
+                    log.warning(f"Failed to fetch {url}: {reason}")
+                    if result.get("blocked"):
+                        errors += 1
+                    continue
+                if not result.get("html"):
                     continue
                 soup = BeautifulSoup(result["html"], "lxml")
                 links = extract_page_links(soup, url)
@@ -133,16 +142,27 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
                         if level + 1 < depth:
                             next_level.add(lnk["url"])
                 if entries:
-                    added = queue_urls(_db_path, entries)
+                    added = await loop.run_in_executor(
+                        None, lambda e=entries: queue_urls(_db_path, e),
+                    )
                     queued += added
-                time.sleep(2)
+                await asyncio.sleep(1)
             current_level = next_level
             if not current_level:
                 break
+    except Exception as e:
+        log.error(f"Crawl error: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e),
+            "starting_url": raw,
+            "pages_visited": len(visited),
+            "urls_queued": queued,
+        }
     finally:
-        crawler.close()
+        await loop.run_in_executor(None, crawler.close)
 
-    return {
+    result = {
         "success": True,
         "starting_url": raw,
         "namespace": classified[0],
@@ -150,7 +170,19 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
         "depth": depth,
         "pages_visited": len(visited),
         "urls_queued": queued,
+        "errors": errors,
     }
+
+    if visited and visited == {raw}:
+        result["note"] = (
+            "The starting page was fetched but Cloudflare blocked it. "
+            "The scraper respects Cloudflare challenges and will not attempt to bypass them. "
+            "This is expected for some TVTropes pages."
+        )
+    elif queued == 0 and visited:
+        result["note"] = "Pages were visited but no new URLs were found to queue."
+
+    return result
 
 
 @router.get("/settings")
@@ -200,10 +232,43 @@ async def api_ollama_status() -> dict[str, Any]:
 @router.get("/log")
 async def api_log(limit: int = 100) -> list[dict[str, Any]]:
     """Return recent log entries from the scraper."""
-
     from tvtropes_mcp.log_ring import get_recent
 
     return get_recent(limit=limit)
+
+
+@router.get("/vector/count")
+async def api_vector_count() -> dict[str, Any]:
+    """Return the number of vectors in the LanceDB index."""
+    from tvtropes_mcp.vector_store import count_vectors
+
+    return {"count": count_vectors(_settings.resolved_data_dir())}
+
+
+@router.post("/vector/rebuild")
+async def api_vector_rebuild() -> dict[str, Any]:
+    """Rebuild the LanceDB vector index from all tropes in the SQLite DB."""
+    from scraper.db import get_conn
+    from tvtropes_mcp.vector_store import upsert_trope_embedding
+
+    embedded = 0
+    errors = 0
+    with get_conn(_db_path) as conn:
+        rows = conn.execute(
+            "SELECT namespace, page_name, title, description, laconic FROM tropes"
+        ).fetchall()
+    for row in rows:
+        trope = dict(row)
+        ok = await upsert_trope_embedding(
+            _settings.resolved_data_dir(),
+            trope,
+            ollama_host=_settings.ollama_host,
+        )
+        if ok:
+            embedded += 1
+        else:
+            errors += 1
+    return {"success": True, "embedded": embedded, "errors": errors, "total": embedded + errors}
 
 
 @router.get("/tools")
@@ -221,6 +286,7 @@ async def api_tools() -> dict[str, Any]:
             "trope_lookup_by_title",
             "calibre_search",
             "calibre_status",
+            "semantic_search",
         ],
         "mcp_http_path": "/mcp",
     }

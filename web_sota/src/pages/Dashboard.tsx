@@ -54,6 +54,7 @@ export function Dashboard() {
   const [crawlDepth, setCrawlDepth] = useState(1);
   const [crawlRunning, setCrawlRunning] = useState(false);
   const [crawlResult, setCrawlResult] = useState<CrawlResult | null>(null);
+  const [crawlError, setCrawlError] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -100,21 +101,20 @@ export function Dashboard() {
   const runCrawl = async () => {
     setCrawlRunning(true);
     setCrawlResult(null);
-    setScraperMsg("Crawling...");
+    setCrawlError(null);
     try {
       const r = await apiPost<CrawlResult>("/api/scraper/crawl", {
         url: crawlUrl,
         depth: crawlDepth,
       });
       setCrawlResult(r);
-      setScraperMsg(r.success ? `Crawled ${r.pages_visited} pages, queued ${r.urls_queued} URLs` : r.error ?? "Failed");
+      if (!r.success) setCrawlError(r.error ?? "Crawl returned no result");
       fetchStatus();
     } catch (e) {
-      setScraperMsg(e instanceof Error ? e.message : "Crawl failed");
+      setCrawlError(e instanceof Error ? e.message : "Crawl request failed");
     } finally {
       setCrawlRunning(false);
     }
-    setTimeout(() => setScraperMsg(null), 5000);
   };
 
   const s = status?.scraper;
@@ -164,15 +164,25 @@ export function Dashboard() {
             Crawl
           </Button>
         </div>
-        {crawlResult && (
+        {crawlError && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm mt-2">
+            {crawlError}
+          </div>
+        )}
+        {crawlResult && crawlResult.success && (
           <div className="text-sm mt-2 space-y-1">
             <p>
               <span className="text-primary">{crawlResult.namespace}/{crawlResult.page_name}</span>
               {" — "}
               <span className="text-muted-foreground">
-                {crawlResult.pages_visited} pages visited, {crawlResult.urls_queued} URLs queued (depth {crawlResult.depth})
+                {crawlResult.pages_visited} pages visited, {crawlResult.urls_queued} URLs queued
+                {crawlResult.errors ? `, ${crawlResult.errors} blocked` : ""}
+                {" (depth "}{crawlResult.depth}{")"}
               </span>
             </p>
+            {crawlResult.note && (
+              <p className="text-xs text-amber-400 mt-1">{crawlResult.note}</p>
+            )}
           </div>
         )}
       </Card>

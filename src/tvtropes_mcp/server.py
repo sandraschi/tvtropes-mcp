@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from fastmcp import Context, FastMCP
 from fastmcp.server.providers.skills import SkillsDirectoryProvider
+from pydantic import Field
 
 from tvtropes_mcp.config import load_settings
 from tvtropes_mcp.db import (
@@ -66,10 +67,10 @@ def _get_manager() -> ScraperManager:
     return _scraper_manager
 
 
-@mcp.tool(annotations={"readOnlyHint": True})
+@mcp.tool(annotations={"readOnlyHint": True}, version="1.0.0")
 async def trope_search(
-    query: str,
-    limit: int = 20,
+    query: Annotated[str, Field(description="Full-text query for trope names and descriptions (FTS5).")],
+    limit: Annotated[int, Field(description="Max results.", ge=1, le=100)] = 20,
     ctx: Context = None,
 ) -> dict[str, Any]:
     """Full-text search over trope names and descriptions using SQLite FTS5.
@@ -386,9 +387,48 @@ async def calibre_status(
     """
     try:
         from tvtropes_mcp.calibre_ops import calibre_status as _calibre_status
-
         result = _calibre_status()
         return {"success": True, **result}
     except Exception as e:
         log.error(f"calibre_status failed: {e}", exc_info=True)
         return {"success": False, "found": False, "library_path": None, "book_count": 0, "error": str(e)}
+
+
+@mcp.tool(annotations={"readOnlyHint": True})
+async def semantic_search(
+    query: Annotated[str, Field(description="Natural language query to search semantically.")],
+    limit: Annotated[int, Field(description="Max results.", ge=1, le=50)] = 10,
+    ctx: Context = None,
+) -> dict[str, Any]:
+    """Semantic (vector) search over tropes using LanceDB + Ollama embeddings.
+
+    Requires Ollama with nomic-embed-text running. Returns tropes ranked by
+    semantic similarity to the query, not keyword match.
+
+    ## Return Format
+    {"success": bool, "query": str, "total": int,
+     "results": [{"id": str, "title": str,
+                  "description": str, "score": float}]}
+
+    ## Examples
+    semantic_search("stories about redemption and sacrifice")
+    semantic_search("time paradoxes in fiction", limit=5)
+    """
+    from tvtropes_mcp.vector_store import semantic_search as _semantic_search
+
+    try:
+        results = await _semantic_search(
+            query,
+            _settings.resolved_data_dir(),
+            limit=limit,
+            ollama_host=_settings.ollama_host,
+        )
+        return {
+            "success": True,
+            "query": query,
+            "results": results,
+            "total": len(results),
+        }
+    except Exception as e:
+        log.error(f"semantic_search failed: {e}", exc_info=True)
+        return {"success": False, "query": query, "results": [], "total": 0, "error": str(e)}
