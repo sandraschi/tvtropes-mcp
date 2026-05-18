@@ -7,7 +7,6 @@ import shutil
 import sys
 import tempfile
 from collections.abc import Generator
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -53,13 +52,34 @@ def _seed_db(db_path: str) -> None:
         description="A dramatic principle where an element introduced early becomes critically significant later.",
         laconic="Every element in a story must be necessary.",
     )
-    upsert_trope(db_path, "Main", "RedHerring", title="Red Herring", description="A misleading clue designed to distract the audience.")
-    upsert_trope(db_path, "Main", "AntiHero", title="Anti-Hero", description="A protagonist who lacks conventional heroic qualities.")
-    upsert_trope(db_path, "Main", "FiveManBand", title="Five-Man Band", description="A team of five characters whose archetypes form a narrative unit.")
-    upsert_trope(db_path, "Main", "MacGuffin", title="MacGuffin", description="A plot device that drives the story but is ultimately unimportant.")
-    upsert_trope(db_path, "Main", "Foreshadowing", title="Foreshadowing", description="A hint of what is to come later.")
-    upsert_trope(db_path, "Film", "Casablanca", title="Casablanca", description="An American romantic drama film from 1942.")
-    upsert_trope(db_path, "Series", "BreakingBad", title="Breaking Bad", description="An American crime drama television series.")
+    upsert_trope(
+        db_path, "Main", "RedHerring", title="Red Herring",
+        description="A misleading clue designed to distract the audience.",
+    )
+    upsert_trope(
+        db_path, "Main", "AntiHero", title="Anti-Hero",
+        description="A protagonist who lacks conventional heroic qualities.",
+    )
+    upsert_trope(
+        db_path, "Main", "FiveManBand", title="Five-Man Band",
+        description="A team of five characters whose archetypes form a narrative unit.",
+    )
+    upsert_trope(
+        db_path, "Main", "MacGuffin", title="MacGuffin",
+        description="A plot device that drives the story but is ultimately unimportant.",
+    )
+    upsert_trope(
+        db_path, "Main", "Foreshadowing", title="Foreshadowing",
+        description="A hint of what is to come later.",
+    )
+    upsert_trope(
+        db_path, "Film", "Casablanca", title="Casablanca",
+        description="An American romantic drama film from 1942.",
+    )
+    upsert_trope(
+        db_path, "Series", "BreakingBad", title="Breaking Bad",
+        description="An American crime drama television series.",
+    )
 
     insert_example(db_path, "Main", "ChekhovsGun", "Film", "Casablanca", "The letters of transit.")
     insert_example(db_path, "Main", "ChekhovsGun", "Series", "BreakingBad", "The meth lab equipment.")

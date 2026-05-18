@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, FastAPI
@@ -13,8 +14,13 @@ from tvtropes_mcp.db import (
 from tvtropes_mcp.db import (
     scraper_status as db_scraper_status,
 )
+from tvtropes_mcp.log_ring import install_log_ring
 from tvtropes_mcp.scraper_manager import ScraperManager
 from tvtropes_mcp.server import mcp
+
+install_log_ring()
+
+log = logging.getLogger(__name__)
 
 _settings = load_settings()
 _db_path = str(_settings.resolved_data_dir() / "tvtropes.db")
@@ -71,6 +77,135 @@ async def api_scraper_bootstrap() -> dict[str, Any]:
     return result
 
 
+@router.post("/scraper/crawl")
+async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
+    """Crawl from a starting URL with depth limit.
+
+    Accepts a full TVTropes URL or a short path like "Anime/Planetarian".
+    Depth controls how many link-hops to follow (default 1 = only direct links).
+    """
+    import time
+
+    from bs4 import BeautifulSoup
+
+    from scraper.crawler import TvtropesCrawler
+    from scraper.db import load_config, queue_urls
+    from scraper.parser import TVTROPES_BASE, classify_url, extract_page_links
+
+    raw = body.get("url", "").strip()
+    depth = max(1, min(int(body.get("depth", 1)), 3))
+
+    if not raw:
+        return {"success": False, "error": "Missing url"}
+
+    if "/" in raw and not raw.startswith("http"):
+        raw = f"{TVTROPES_BASE}/pmwiki/pmwiki.php/{raw}"
+    elif not raw.startswith("http"):
+        raw = f"{TVTROPES_BASE}/pmwiki/pmwiki.php/Main/{raw}"
+
+    classified = classify_url(raw)
+    if not classified:
+        return {"success": False, "error": f"Invalid TVTropes URL: {raw}"}
+
+    config = load_config()
+    crawler = TvtropesCrawler(config)
+    visited: set[str] = set()
+    queued = 0
+
+    try:
+        current_level = {raw}
+        for level in range(depth):
+            log.info(f"Crawl level {level + 1}/{depth}: {len(current_level)} pages")
+            next_level: set[str] = set()
+            for url in current_level:
+                if url in visited:
+                    continue
+                visited.add(url)
+                result = crawler.fetch(url)
+                if not result["success"] or not result["html"]:
+                    continue
+                soup = BeautifulSoup(result["html"], "lxml")
+                links = extract_page_links(soup, url)
+                entries = []
+                for lnk in links:
+                    if lnk["url"] not in visited:
+                        entries.append(lnk)
+                        if level + 1 < depth:
+                            next_level.add(lnk["url"])
+                if entries:
+                    added = queue_urls(_db_path, entries)
+                    queued += added
+                time.sleep(2)
+            current_level = next_level
+            if not current_level:
+                break
+    finally:
+        crawler.close()
+
+    return {
+        "success": True,
+        "starting_url": raw,
+        "namespace": classified[0],
+        "page_name": classified[1],
+        "depth": depth,
+        "pages_visited": len(visited),
+        "urls_queued": queued,
+    }
+
+
+@router.get("/settings")
+async def api_settings() -> dict[str, Any]:
+    """Return current runtime settings (safe values only)."""
+    from tvtropes_mcp.config import load_settings as _ls
+
+    s = _ls()
+    return {
+        "host": s.host,
+        "port": s.port,
+        "data_dir": str(s.resolved_data_dir()),
+        "ollama_host": s.ollama_host,
+        "ollama_model": s.ollama_model,
+        "ollama_timeout": s.ollama_timeout,
+        "scraper_delay_min": s.scraper_delay_min,
+        "scraper_delay_max": s.scraper_delay_max,
+        "scraper_daily_budget": s.scraper_daily_budget,
+    }
+
+
+@router.get("/ollama/status")
+async def api_ollama_status() -> dict[str, Any]:
+    """Check if Ollama (or LMStudio) is running and has the configured model."""
+    import httpx
+
+    s = load_settings()
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"{s.ollama_host}/api/tags")
+            if r.status_code == 200:
+                models = r.json().get("models", [])
+                model_names = [m["name"] for m in models]
+                configured_found = any(m.startswith(s.ollama_model) for m in model_names)
+                return {
+                    "running": True,
+                    "host": s.ollama_host,
+                    "model_configured": s.ollama_model,
+                    "model_found": configured_found,
+                    "models_available": model_names,
+                }
+            return {"running": False, "host": s.ollama_host, "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"running": False, "host": s.ollama_host, "error": str(e)}
+
+
+@router.get("/log")
+async def api_log(limit: int = 100) -> list[dict[str, Any]]:
+    """Return recent log entries from the scraper."""
+
+    from tvtropes_mcp.log_ring import get_recent
+
+    return get_recent(limit=limit)
+
+
 @router.get("/tools")
 async def api_tools() -> dict[str, Any]:
     return {
@@ -119,6 +254,7 @@ async def api_mcp_tool(body: dict[str, Any]) -> dict[str, Any]:
     import json
 
     from fastmcp.exceptions import NotFoundError
+
     from tvtropes_mcp.server import mcp
 
     name = body.get("name", "")

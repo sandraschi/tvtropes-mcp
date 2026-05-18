@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-import pytest
 from fastapi.testclient import TestClient
 
-from scraper.db import queue_urls, get_crawl_stats
-
+from scraper.db import get_crawl_stats, queue_urls
 
 # ─── Health & Status ─────────────────────────────────────────────
 
@@ -74,7 +70,10 @@ class TestTropeSearch:
         assert any("ChekhovsGun" in r["id"] for r in data["results"])
 
     def test_search_not_found(self, client: TestClient) -> None:
-        r = client.post("/api/mcp/tool", json={"name": "trope_search", "args": {"query": "zzzznonexistent", "limit": 5}})
+        r = client.post(
+            "/api/mcp/tool",
+            json={"name": "trope_search", "args": {"query": "zzzznonexistent", "limit": 5}},
+        )
         assert r.status_code == 200
         data = r.json()
         assert data["total"] == 0
@@ -134,7 +133,10 @@ class TestWorkTropes:
 
 class TestTropeExamples:
     def test_examples_all(self, client: TestClient) -> None:
-        r = client.post("/api/mcp/tool", json={"name": "trope_examples", "args": {"trope_id": "Main/ChekhovsGun", "limit": 10}})
+        r = client.post(
+            "/api/mcp/tool",
+            json={"name": "trope_examples", "args": {"trope_id": "Main/ChekhovsGun", "limit": 10}},
+        )
         assert r.status_code == 200
         data = r.json()
         assert data["success"] is True
@@ -262,24 +264,22 @@ class TestScraperPipeline:
 
     def test_full_pipeline(self, db_path: str) -> None:
         from scraper.db import (
-            get_crawl_stats,
-            mark_crawled,
-            mark_extracted,
-            pop_pending,
-            queue_urls,
-        )
-        from scraper.db import (
             insert_example,
             insert_relation,
             insert_work_trope,
+            mark_crawled,
+            mark_extracted,
+            pop_pending,
             upsert_trope,
         )
-        from tvtropes_mcp.db import trope_search, trope_get, work_tropes
+        from tvtropes_mcp.db import trope_get, trope_search, work_tropes
 
         # Phase 1: Seed queue
         urls = [
-            {"url": "https://tvtropes.org/pmwiki/pmwiki.php/Main/ChekhovsGun", "namespace": "Main", "page_name": "ChekhovsGun"},
-            {"url": "https://tvtropes.org/pmwiki/pmwiki.php/Main/RedHerring", "namespace": "Main", "page_name": "RedHerring"},
+            {"url": "https://tvtropes.org/pmwiki/pmwiki.php/Main/ChekhovsGun",
+             "namespace": "Main", "page_name": "ChekhovsGun"},
+            {"url": "https://tvtropes.org/pmwiki/pmwiki.php/Main/RedHerring",
+             "namespace": "Main", "page_name": "RedHerring"},
         ]
         added = queue_urls(db_path, urls)
         assert added == 2

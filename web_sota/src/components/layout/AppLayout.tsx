@@ -1,24 +1,31 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   BookMarked,
+  Brain,
   HelpCircle,
   Home,
   Layers,
   Library,
   Lightbulb,
+  List,
   Menu,
+  MessageSquare,
   Settings,
   X,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { LoggerPanel } from "@/components/layout/LoggerPanel";
 
 const nav = [
   { to: "/dashboard", label: "Home", icon: Home },
   { to: "/search", label: "Trope Search", icon: Lightbulb },
   { to: "/works", label: "Work Browser", icon: Library },
   { to: "/graph", label: "Trope Graph", icon: Layers },
+  { to: "/chat", label: "Chat", icon: MessageSquare },
+  { to: "/ollama", label: "Ollama", icon: Brain },
+  { to: "/log", label: "Log", icon: List },
   { to: "/settings", label: "Settings", icon: Settings },
   { to: "/help", label: "Help", icon: HelpCircle },
 ] as const;
@@ -97,7 +104,7 @@ export function AppLayout() {
         </div>
       )}
 
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen pt-12 md:pt-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen pt-12 md:pt-0 pb-12">
         <header className="hidden md:flex h-14 items-center border-b border-border/60 px-6 bg-background/40 backdrop-blur-sm sticky top-0 z-20">
           <div className="text-sm text-muted-foreground">
             MCP HTTP proxied at <code className="text-primary">/mcp</code> · API{" "}
@@ -108,6 +115,8 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <LoggerPanel />
     </div>
   );
 }

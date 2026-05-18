@@ -7,10 +7,15 @@ import {
   Play,
   Square,
   RefreshCw,
+  Search,
+  ArrowRight,
+  Loader2,
 } from "lucide-react";
 import { apiGet, apiPost } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { PageHero } from "@/components/layout/PageHero";
 
 type Health = { status: string; service: string };
 type ScraperInfo = {
@@ -28,11 +33,27 @@ type Status = {
   db: { size_mb: number; tropes: number; examples: number };
 };
 
+type CrawlResult = {
+  success: boolean;
+  starting_url: string;
+  namespace: string;
+  page_name: string;
+  depth: number;
+  pages_visited: number;
+  urls_queued: number;
+  error?: string;
+};
+
 export function Dashboard() {
   const [health, setHealth] = useState<Health | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [scraperMsg, setScraperMsg] = useState<string | null>(null);
+
+  const [crawlUrl, setCrawlUrl] = useState("Anime/Planetarian");
+  const [crawlDepth, setCrawlDepth] = useState(1);
+  const [crawlRunning, setCrawlRunning] = useState(false);
+  const [crawlResult, setCrawlResult] = useState<CrawlResult | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -44,8 +65,7 @@ export function Dashboard() {
       setStatus(s);
       setErr(null);
     } catch (e) {
-      const m = e instanceof Error ? e.message : String(e);
-      setErr(m);
+      setErr(e instanceof Error ? e.message : String(e));
     }
   }, []);
 
@@ -77,59 +97,85 @@ export function Dashboard() {
     setTimeout(() => setScraperMsg(null), 3000);
   };
 
-  const runExtraction = async () => {
-    setScraperMsg("Running extraction pass...");
+  const runCrawl = async () => {
+    setCrawlRunning(true);
+    setCrawlResult(null);
+    setScraperMsg("Crawling...");
     try {
-      const r = await apiPost<{ success: boolean; extracted: number }>("/api/scraper/extract");
-      setScraperMsg(`Extraction pass done: ${r.extracted} pages`);
+      const r = await apiPost<CrawlResult>("/api/scraper/crawl", {
+        url: crawlUrl,
+        depth: crawlDepth,
+      });
+      setCrawlResult(r);
+      setScraperMsg(r.success ? `Crawled ${r.pages_visited} pages, queued ${r.urls_queued} URLs` : r.error ?? "Failed");
       fetchStatus();
     } catch (e) {
-      setScraperMsg(e instanceof Error ? e.message : "Failed");
+      setScraperMsg(e instanceof Error ? e.message : "Crawl failed");
+    } finally {
+      setCrawlRunning(false);
     }
     setTimeout(() => setScraperMsg(null), 5000);
   };
 
   const s = status?.scraper;
 
-  const tiles = [
-    {
-      label: "Trope Search",
-      desc: "Full-text search across indexed tropes using SQLite FTS5.",
-      icon: Lightbulb,
-    },
-    {
-      label: "Work Browser",
-      desc: "Browse all tropes for films, series, books, games, and more.",
-      icon: BookOpen,
-    },
-    {
-      label: "Trope Graph",
-      desc: "Traverse SubTrope / SuperTrope / SisterTrope relationships.",
-      icon: Layers,
-    },
-    {
-      label: "Namespaces",
-      desc: "Filter by medium — Film, Literature, Anime, VideoGame, and more.",
-      icon: Globe,
-    },
-  ];
-
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">TVTropes MCP</h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl">
-          Local mirror of the TVTropes knowledge graph. Background scraper builds a SQLite
-          database using curl_cffi (Chrome TLS bypass) + Ollama extraction. MCP tools query it
-          without touching the network.
-        </p>
-      </div>
+      <PageHero
+        eyebrow="tvtropes-mcp"
+        title="TVTropes local mirror"
+        size="large"
+        lead="Polite background crawler, Ollama extraction, 11 FastMCP tools, React dashboard, Calibre integration."
+      />
 
       {err && (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm">
           API: {err} — is the backend running on port 10964?
         </div>
       )}
+
+      {/* Start a crawl card */}
+      <Card>
+        <CardTitle>
+          <Search className="h-5 w-5 inline mr-2 text-primary" />
+          Start a crawl from a URL
+        </CardTitle>
+        <p className="text-sm text-muted-foreground mt-1">
+          Enter a TVTropes page path or URL to crawl it and linked pages up to the chosen depth.
+        </p>
+        <div className="flex flex-wrap gap-2 mt-3">
+          <Input
+            placeholder="Anime/Planetarian or full URL"
+            value={crawlUrl}
+            onChange={(e) => setCrawlUrl(e.target.value)}
+            className="flex-1 min-w-[200px]"
+          />
+          <select
+            value={crawlDepth}
+            onChange={(e) => setCrawlDepth(Number(e.target.value))}
+            className="h-10 rounded-md border border-input bg-background/60 px-3 text-sm"
+          >
+            {[1, 2, 3].map((d) => (
+              <option key={d} value={d}>Depth {d}</option>
+            ))}
+          </select>
+          <Button onClick={runCrawl} disabled={crawlRunning || !crawlUrl.trim()}>
+            {crawlRunning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ArrowRight className="h-4 w-4 mr-1" />}
+            Crawl
+          </Button>
+        </div>
+        {crawlResult && (
+          <div className="text-sm mt-2 space-y-1">
+            <p>
+              <span className="text-primary">{crawlResult.namespace}/{crawlResult.page_name}</span>
+              {" — "}
+              <span className="text-muted-foreground">
+                {crawlResult.pages_visited} pages visited, {crawlResult.urls_queued} URLs queued (depth {crawlResult.depth})
+              </span>
+            </p>
+          </div>
+        )}
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -152,82 +198,48 @@ export function Dashboard() {
         </Card>
       </div>
 
+      {/* Scraper control */}
       <Card>
-        <CardTitle>Scraper Control</CardTitle>
+        <CardTitle>Background Scraper</CardTitle>
+        <p className="text-sm text-muted-foreground mt-1">
+          Full crawl bootstraps from the sitemap and runs for weeks at a polite 8–15s/page rate.
+        </p>
         <div className="flex flex-wrap gap-2 mt-3">
-          <Button
-            size="sm"
-            onClick={startScraper}
-            disabled={s?.state === "running"}
-          >
-            <Play className="h-4 w-4 mr-1" />
-            Start
+          <Button size="sm" onClick={startScraper} disabled={s?.state === "running"}>
+            <Play className="h-4 w-4 mr-1" /> Start
           </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={stopScraper}
-            disabled={s?.state !== "running"}
-          >
-            <Square className="h-4 w-4 mr-1" />
-            Stop
-          </Button>
-          <Button size="sm" variant="outline" onClick={runExtraction}>
-            <RefreshCw className="h-4 w-4 mr-1" />
-            Extract Pass
+          <Button size="sm" variant="secondary" onClick={stopScraper} disabled={s?.state !== "running"}>
+            <Square className="h-4 w-4 mr-1" /> Stop
           </Button>
         </div>
         {s && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">State</span>
-              <p className="font-medium">{s.state}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Pending</span>
-              <p className="font-medium">{s.pending}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Crawled</span>
-              <p className="font-medium">{s.crawled}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Extracted</span>
-              <p className="font-medium">{s.extracted}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Failed</span>
-              <p className="font-medium">{s.failed}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Blocked</span>
-              <p className="font-medium">{s.blocked}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Skipped</span>
-              <p className="font-medium">{s.skipped}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Today</span>
-              <p className="font-medium">{s.daily}</p>
-            </div>
+            <div><span className="text-muted-foreground">State</span><p className="font-medium">{s.state}</p></div>
+            <div><span className="text-muted-foreground">Pending</span><p className="font-medium">{s.pending}</p></div>
+            <div><span className="text-muted-foreground">Crawled</span><p className="font-medium">{s.crawled}</p></div>
+            <div><span className="text-muted-foreground">Extracted</span><p className="font-medium">{s.extracted}</p></div>
+            <div><span className="text-muted-foreground">Failed</span><p className="font-medium">{s.failed}</p></div>
+            <div><span className="text-muted-foreground">Blocked</span><p className="font-medium">{s.blocked}</p></div>
+            <div><span className="text-muted-foreground">Skipped</span><p className="font-medium">{s.skipped}</p></div>
+            <div><span className="text-muted-foreground">Today</span><p className="font-medium">{s.daily}</p></div>
           </div>
         )}
-        {scraperMsg && (
-          <p className="text-sm text-primary mt-2">{scraperMsg}</p>
-        )}
+        {scraperMsg && <p className="text-sm text-primary mt-2">{scraperMsg}</p>}
       </Card>
 
       <div>
         <h2 className="text-lg font-semibold tracking-tight">MCP Tools</h2>
-        <p className="text-muted-foreground text-sm mt-1">
-          8 tools registered via FastMCP 3.2. Query the DB or control the scraper.
-        </p>
+        <p className="text-muted-foreground text-sm mt-1">11 tools registered via FastMCP 3.2.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {tiles.map((t) => (
-          <div key={t.label} className="block group">
+        {[
+          { label: "Trope Search", desc: "Full-text FTS5 search across indexed tropes.", icon: Lightbulb },
+          { label: "Work Browser", desc: "Browse all tropes for films, series, books, games.", icon: BookOpen },
+          { label: "Trope Graph", desc: "Traverse SubTrope, SuperTrope, SisterTrope.", icon: Layers },
+          { label: "Namespaces", desc: "Filter by medium — Film, Anime, Literature, etc.", icon: Globe },
+        ].map((t) => (
+          <div key={t.label}>
             <Card className="h-full">
               <div className="flex gap-3">
                 <t.icon className="h-8 w-8 text-primary shrink-0" />
