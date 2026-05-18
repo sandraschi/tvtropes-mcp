@@ -208,21 +208,18 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
 
 @router.get("/settings")
 async def api_settings() -> dict[str, Any]:
-    """Return current runtime settings (safe values only)."""
-    from tvtropes_mcp.config import load_settings as _ls
+    """Return current user settings (persisted in data/settings.json)."""
+    from tvtropes_mcp.settings_manager import get_all
 
-    s = _ls()
-    return {
-        "host": s.host,
-        "port": s.port,
-        "data_dir": str(s.resolved_data_dir()),
-        "ollama_host": s.ollama_host,
-        "ollama_model": s.ollama_model,
-        "ollama_timeout": s.ollama_timeout,
-        "scraper_delay_min": s.scraper_delay_min,
-        "scraper_delay_max": s.scraper_delay_max,
-        "scraper_daily_budget": s.scraper_daily_budget,
-    }
+    return get_all()
+
+
+@router.post("/settings")
+async def api_settings_update(body: dict[str, Any]) -> dict[str, Any]:
+    """Update user settings and persist to data/settings.json."""
+    from tvtropes_mcp.settings_manager import update
+
+    return update(body)
 
 
 @router.get("/ollama/status")
@@ -230,24 +227,46 @@ async def api_ollama_status() -> dict[str, Any]:
     """Check if Ollama (or LMStudio) is running and has the configured model."""
     import httpx
 
-    s = load_settings()
+    from tvtropes_mcp.settings_manager import get_all as _get_sett
+
+    s = _get_sett()
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(f"{s.ollama_host}/api/tags")
+            r = await client.get(f"{s['ollama_host']}/api/tags")
             if r.status_code == 200:
                 models = r.json().get("models", [])
                 model_names = [m["name"] for m in models]
-                configured_found = any(m.startswith(s.ollama_model) for m in model_names)
+                configured_found = any(m.startswith(s["ollama_model"]) for m in model_names)
                 return {
                     "running": True,
-                    "host": s.ollama_host,
-                    "model_configured": s.ollama_model,
+                    "host": s["ollama_host"],
+                    "model_configured": s["ollama_model"],
                     "model_found": configured_found,
                     "models_available": model_names,
                 }
-            return {"running": False, "host": s.ollama_host, "error": f"HTTP {r.status_code}"}
+            return {"running": False, "host": s["ollama_host"], "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return {"running": False, "host": s.ollama_host, "error": str(e)}
+        return {"running": False, "host": s["ollama_host"], "error": str(e)}
+
+
+@router.post("/ollama/test")
+async def api_ollama_test(body: dict[str, Any]) -> dict[str, Any]:
+    """Test a specific Ollama/LMStudio host+model combination."""
+    import httpx
+
+    host = body.get("host", "http://localhost:11434")
+    model = body.get("model", "")
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{host}/api/tags")
+            if r.status_code == 200:
+                models = r.json().get("models", [])
+                model_names = [m["name"] for m in models]
+                found = any(m.startswith(model) for m in model_names) if model else True
+                return {"success": True, "host": host, "reachable": True, "model_found": found, "models": model_names}
+            return {"success": False, "host": host, "reachable": False, "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"success": False, "host": host, "reachable": False, "error": str(e)}
 
 
 @router.get("/log")
