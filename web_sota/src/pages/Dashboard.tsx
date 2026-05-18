@@ -38,10 +38,16 @@ type CrawlResult = {
   starting_url: string;
   namespace: string;
   page_name: string;
+  page_title?: string;
   depth: number;
   pages_visited: number;
   urls_queued: number;
+  links_found?: number;
+  errors?: number;
   error?: string;
+  note?: string;
+  sample_links?: { ns: string; name: string }[];
+  next_steps?: string[];
 };
 
 export function Dashboard() {
@@ -170,18 +176,40 @@ export function Dashboard() {
           </div>
         )}
         {crawlResult && crawlResult.success && (
-          <div className="text-sm mt-2 space-y-1">
-            <p>
-              <span className="text-primary">{crawlResult.namespace}/{crawlResult.page_name}</span>
-              {" — "}
-              <span className="text-muted-foreground">
-                {crawlResult.pages_visited} pages visited, {crawlResult.urls_queued} URLs queued
-                {crawlResult.errors ? `, ${crawlResult.errors} blocked` : ""}
-                {" (depth "}{crawlResult.depth}{")"}
+          <div className="text-sm mt-2 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-primary font-medium">
+                {crawlResult.page_title ?? `${crawlResult.namespace}/${crawlResult.page_name}`}
               </span>
-            </p>
+              <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded">
+                {crawlResult.namespace}/{crawlResult.page_name}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div><span className="text-muted-foreground">Visited</span><p className="font-medium">{crawlResult.pages_visited}</p></div>
+              <div><span className="text-muted-foreground">Links found</span><p className="font-medium">{crawlResult.links_found ?? 0}</p></div>
+              <div><span className="text-muted-foreground">Queued</span><p className="font-medium">{crawlResult.urls_queued}</p></div>
+              <div><span className="text-muted-foreground">Depth</span><p className="font-medium">{crawlResult.depth}</p></div>
+            </div>
+            {crawlResult.sample_links && crawlResult.sample_links.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Sample linked pages:</p>
+                <div className="flex flex-wrap gap-1">
+                  {crawlResult.sample_links.map((l, i) => (
+                    <span key={i} className="text-xs bg-muted/40 px-1.5 py-0.5 rounded">
+                      {l.ns}/{l.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {crawlResult.next_steps && crawlResult.next_steps.length > 0 && (
+              <div className="text-xs text-green-400 space-y-0.5">
+                {crawlResult.next_steps.map((s, i) => <p key={i}>{s}</p>)}
+              </div>
+            )}
             {crawlResult.note && (
-              <p className="text-xs text-amber-400 mt-1">{crawlResult.note}</p>
+              <p className="text-xs text-amber-400">{crawlResult.note}</p>
             )}
           </div>
         )}

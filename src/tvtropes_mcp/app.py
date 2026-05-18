@@ -91,7 +91,7 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
 
     from scraper.crawler import TvtropesCrawler
     from scraper.db import load_config, queue_urls
-    from scraper.parser import TVTROPES_BASE, classify_url, extract_page_links
+    from scraper.parser import TVTROPES_BASE, classify_url, extract_page_links, extract_page_title
 
     raw = body.get("url", "").strip()
     depth = max(1, min(int(body.get("depth", 1)), 3))
@@ -114,6 +114,9 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
     visited: set[str] = set()
     queued = 0
     errors = 0
+    page_title: str | None = None
+    sample_links: list[dict[str, str]] = []
+    links_found = 0
 
     try:
         current_level = {raw}
@@ -134,14 +137,21 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
                 if not result.get("html"):
                     continue
                 soup = BeautifulSoup(result["html"], "lxml")
+                if level == 0:
+                    page_title = extract_page_title(soup)
                 links = extract_page_links(soup, url)
-                entries = []
-                for lnk in links:
-                    if lnk["url"] not in visited:
-                        entries.append(lnk)
-                        if level + 1 < depth:
+                if level + 1 < depth:
+                    for lnk in links:
+                        if lnk["url"] not in visited:
                             next_level.add(lnk["url"])
+                entries = [lnk for lnk in links if lnk["url"] not in visited]
                 if entries:
+                    links_found += len(entries)
+                    if len(sample_links) < 10:
+                        sample_links.extend(
+                            {"ns": e["namespace"], "name": e["page_name"]}
+                            for e in entries[: 10 - len(sample_links)]
+                        )
                     added = await loop.run_in_executor(
                         None, lambda e=entries: queue_urls(_db_path, e),
                     )
@@ -162,15 +172,27 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
     finally:
         await loop.run_in_executor(None, crawler.close)
 
+    next_steps: list[str] = []
+    if queued > 0:
+        next_steps.append(f"{queued} URLs queued for scraping.")
+        if not _scraper.crawler_running:
+            start_result = _scraper.start_crawler()
+            if start_result.get("success"):
+                next_steps.append("Background scraper auto-started to fetch these pages.")
+
     result = {
         "success": True,
         "starting_url": raw,
         "namespace": classified[0],
         "page_name": classified[1],
+        "page_title": page_title,
         "depth": depth,
         "pages_visited": len(visited),
         "urls_queued": queued,
+        "links_found": links_found,
         "errors": errors,
+        "sample_links": sample_links,
+        "next_steps": next_steps,
     }
 
     if visited and visited == {raw} and errors > 0:
@@ -178,10 +200,8 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
             "The starting page was blocked by Cloudflare. The scraper will "
             "back off and retry; this is rare with the current configuration."
         )
-    elif errors > 0 and queued > 0:
-        result["note"] = f"{errors} page(s) were blocked but {queued} URLs were still queued."
     elif queued == 0 and visited:
-        result["note"] = "Pages were visited but no new URLs were found to queue."
+        result["note"] = "Page was fetched but no internal links were found to queue."
 
     return result
 
