@@ -56,9 +56,15 @@ class TvtropesCrawler:
         if self._session is None:
             return
         self._session.headers.update({
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/131.0.0.0 Safari/537.36"
+            ),
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "de-AT,de;q=0.9,en;q=0.8,ja;q=0.7",
             "Accept-Encoding": "gzip, deflate, br",
+            "Cache-Control": "max-age=0",
             "DNT": "1",
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
@@ -155,12 +161,7 @@ class TvtropesCrawler:
             if not warmed:
                 result["blocked"] = True
                 result["error"] = "Cloudflare block page detected during session warmup"
-                result["note"] = (
-                    "TVTropes is behind Cloudflare protection that blocked the initial "
-                    "homepage request. This is expected — the scraper does not attempt "
-                    "to bypass Cloudflare challenges. Try again later, or use the "
-                    "background scheduler which retries with exponential backoff."
-                )
+                result["note"] = "Session warmup failed. Retrying with backoff."
                 return result
 
         self._respect_delay()
@@ -180,11 +181,6 @@ class TvtropesCrawler:
             if is_cloudflare_blocked(html):
                 result["blocked"] = True
                 result["error"] = "Cloudflare block page detected"
-                result["note"] = (
-                    "Cloudflare blocked this specific page request. This can happen "
-                    "even after a successful warmup for pages with enhanced protection. "
-                    "The scraper respects this and will not retry aggressively."
-                )
                 log.warning(f"Blocked by Cloudflare: {url}")
                 return result
 

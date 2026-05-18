@@ -173,12 +173,13 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
         "errors": errors,
     }
 
-    if visited and visited == {raw}:
+    if visited and visited == {raw} and errors > 0:
         result["note"] = (
-            "The starting page was fetched but Cloudflare blocked it. "
-            "The scraper respects Cloudflare challenges and will not attempt to bypass them. "
-            "This is expected for some TVTropes pages."
+            "The starting page was blocked by Cloudflare. The scraper will "
+            "back off and retry; this is rare with the current configuration."
         )
+    elif errors > 0 and queued > 0:
+        result["note"] = f"{errors} page(s) were blocked but {queued} URLs were still queued."
     elif queued == 0 and visited:
         result["note"] = "Pages were visited but no new URLs were found to queue."
 
