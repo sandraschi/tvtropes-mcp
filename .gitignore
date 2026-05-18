@@ -13,8 +13,8 @@ dist/
 .uv/
 
 # Node (dashboard)
-webapp/node_modules/
-webapp/dist/
+web_sota/node_modules/
+web_sota/dist/
 
 # Env
 .env
