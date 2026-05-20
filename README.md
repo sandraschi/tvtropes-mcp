@@ -1,12 +1,11 @@
 # tvtropes-mcp
 
-[![Status: Alpha](https://img.shields.io/badge/Status-Alpha-red?style=flat-square)](README.md)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
-[![FastMCP](https://img.shields.io/badge/FastMCP-3.2+-purple?style=flat-square)](https://github.com/jlowin/fastmcp)
-[![Tests](https://img.shields.io/badge/Tests-98%20passing-brightgreen?style=flat-square)](tests/)
-[![Ruff](https://img.shields.io/badge/Ruff-clean-brightgreen?style=flat-square)](https://github.com/astral-sh/ruff)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
-[![Code size](https://img.shields.io/github/languages/code-size/sandraschi/tvtropes-mcp?style=flat-square)](.)
+<p align="center">
+  <a href="https://github.com/casey/just"><img src="https://img.shields.io/badge/just-ready_to_go-7c5cfc?style=flat-square&logo=just&logoColor=white" alt="Just"></a>
+  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
+  <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.13+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
+  <a href="https://github.com/PrefectHQ/fastmcp"><img src="https://img.shields.io/badge/FastMCP-3.2-7c5cfc?style=flat-square" alt="FastMCP"></a>
+</p>
 
 **A considerate local mirror of the TVTropes knowledge graph — polite background crawler, 12 FastMCP tools, React dashboard, LanceDB semantic search, Calibre cross-reference.**
 
@@ -35,27 +34,23 @@ uv run python -m tvtropes_mcp --serve
 ## Quick Start
 
 ```powershell
+git clone https://github.com/sandraschi/tvtropes-mcp
+cd tvtropes-mcp
+just
+```
+
+This opens an interactive dashboard showing all available commands. Run `just bootstrap` to install dependencies, then `just serve` or `just dev` to start.
+
+### Manual Setup
+
+If you don't have `just` installed:
 git clone https://github.com/sandraschi/tvtropes-mcp.git
 cd tvtropes-mcp
 just install     # Python deps + frontend
 just serve       # API + MCP on :10964
 # Dashboard: http://127.0.0.1:10965
-```
-
 See [INSTALL.md](INSTALL.md) for prerequisites, configuration, and MCP client setup.
-
 Or via individual commands:
-
-| Command | Action |
-|---------|--------|
-| `just serve` | API + MCP on `:10964` |
-| `just stdio` | MCP over stdio |
-| `just web` | Dashboard on `:10965` |
-| `just dev` | Full stack (backend + dashboard) |
-| `just test` | Run 98 tests |
-| `just lint` | Ruff check |
-
----
 
 ## Project Overview
 

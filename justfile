@@ -1,31 +1,8 @@
 default_shell := "powershell.exe"
 
-# ── Dashboard ──────────────────────────────────────────────────────
-
-# Show available commands
+# Open the interactive recipe dashboard in the browser
 default:
-    @Write-Host ' [SOTA] tvtropes-mcp Operations Dashboard' -ForegroundColor White -BackgroundColor Cyan; \
-    Write-Host ''; \
-    Write-Host '  Quality' -ForegroundColor Cyan; \
-    Write-Host '  ─────────────────────────────────────────' -ForegroundColor Gray; \
-    Write-Host '    lint           Ruff lint Python' -ForegroundColor White; \
-    Write-Host '    format         Ruff format Python' -ForegroundColor White; \
-    Write-Host '    test           Run Python tests' -ForegroundColor White; \
-    Write-Host '    ci             Full CI pipeline' -ForegroundColor White; \
-    Write-Host ''; \
-    Write-Host '  Serving' -ForegroundColor Cyan; \
-    Write-Host '  ─────────────────────────────────────────' -ForegroundColor Gray; \
-    Write-Host '    serve          API + MCP on :10964' -ForegroundColor White; \
-    Write-Host '    stdio          MCP stdio mode' -ForegroundColor White; \
-    Write-Host '    scrape         Standalone crawler daemon' -ForegroundColor White; \
-    Write-Host '    web            Dashboard on :10965' -ForegroundColor White; \
-    Write-Host ''; \
-    Write-Host '  Repo' -ForegroundColor Cyan; \
-    Write-Host '  ─────────────────────────────────────────' -ForegroundColor Gray; \
-    Write-Host '    install        Full install (uv sync + npm)' -ForegroundColor White; \
-    Write-Host '    lookup title=Matrix hint=movie' -ForegroundColor White; \
-    Write-Host '    crawl url=Anime/Evangelion depth=1' -ForegroundColor White; \
-    Write-Host '    install-mcp    Add to Claude/Cursor config' -ForegroundColor White
+    @pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ../mcp-central-docs/scripts/just-dashboard.ps1 -Path .
 
 # ── Quality ────────────────────────────────────────────────────────
 

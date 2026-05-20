@@ -19,3 +19,4 @@ web_sota/dist/
 # Env
 .env
 *.env.local
+_dashboard/
