@@ -72,3 +72,5 @@ just test                # via justfile
 ruff check src/ scraper/ tests/
 ruff format src/ scraper/ tests/
 ```
+
+Install docs: follow mcp-central-docs/standards/AGENT_INSTALL_REFERENCE.md
