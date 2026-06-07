@@ -1,8 +1,8 @@
-default_shell := "powershell.exe"
+﻿default_shell := "powershell.exe"
 
 # Open the interactive recipe dashboard in the browser
 default:
-    @pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ../mcp-central-docs/scripts/just-dashboard.ps1 -Path .
+    @just --list
 
 # ── Quality ────────────────────────────────────────────────────────
 
@@ -138,4 +138,3 @@ clean:
     Remove-Item -Recurse -Force .venv, __pycache__, .pytest_cache, .ruff_cache, web_sota/node_modules -ErrorAction SilentlyContinue
     Get-ChildItem -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
 
-.PHONY: lint format format-check test test-all web-lint web-fmt web-ci web-build ci serve stdio scrape web dev install sync sync-web lookup crawl scraper-status ollama-status bridge mcp backup install-mcp mcpb-pack pre-commit clean

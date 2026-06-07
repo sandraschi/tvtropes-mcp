@@ -7,4 +7,4 @@ if (-not (Test-Path $webStart)) {
     Write-Host "ERROR: web_sota\start.ps1 not found." -ForegroundColor Red
     exit 1
 }
-& $webStart @(if ($Headless) { "-Headless" })
+& $webStart -Headless:$Headless
