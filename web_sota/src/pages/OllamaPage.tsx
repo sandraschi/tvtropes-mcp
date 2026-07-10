@@ -5,20 +5,23 @@ import { PageHero } from "@/components/layout/PageHero";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
-type Settings = {
-  ollama_host: string;
-  ollama_model: string;
-  ollama_timeout: number;
+type DiscoverProvider = {
+  id: string;
+  label: string;
+  base_url: string;
+  models: string[];
+  online: boolean;
+  error?: string;
 };
 
-type StatusResult = {
-  running: boolean;
-  host: string;
-  model_configured: string;
-  model_found: boolean;
-  models_available: string[];
-  error?: string;
+type DiscoverResult = {
+  providers: DiscoverProvider[];
+  configured_host: string;
+  configured_model: string;
+  api_mode: string;
+  configured_openai_model: string;
 };
 
 type TestResult = {
@@ -31,29 +34,50 @@ type TestResult = {
 };
 
 export function OllamaPage() {
-  const [_settings, setSettings] = useState<Settings | null>(null);
-  const [status, setStatus] = useState<StatusResult | null>(null);
-  const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [discover, setDiscover] = useState<DiscoverResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editHost, setEditHost] = useState("");
-  const [editModel, setEditModel] = useState("");
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  const [selectedProvider, setSelectedProvider] = useState("ollama");
+  const [endpointUrl, setEndpointUrl] = useState("http://localhost:11434");
+  const [selectedModel, setSelectedModel] = useState("");
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+
+  const currentProviders = discover?.providers ?? [];
+  const currentProvider = currentProviders.find((p) => p.id === selectedProvider);
+  const providerModels = currentProvider?.models ?? [];
+  const providerOnline = currentProvider?.online ?? false;
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, st] = await Promise.all([
-        apiGet<Settings>("/api/settings"),
-        apiGet<StatusResult>("/api/ollama/status").catch(() => null),
-      ]);
-      setSettings(s);
-      setEditHost(s.ollama_host);
-      setEditModel(s.ollama_model);
-      setStatus(st);
+      const d = await apiGet<DiscoverResult>("/api/llm/discover");
+      setDiscover(d);
+
+      const configuredModel = d.api_mode === "openai" ? d.configured_openai_model : d.configured_model;
+      setSelectedModel(configuredModel || "");
+
+      const onlineProviders = d.providers.filter((p) => p.online && p.models.length > 0);
+      if (onlineProviders.length > 0) {
+        const match = onlineProviders.find((p) =>
+          (d.api_mode === "ollama" && p.id === "ollama") ||
+          (d.api_mode === "openai" && p.id === "lmstudio")
+        );
+        if (match) {
+          setSelectedProvider(match.id);
+          setEndpointUrl(match.base_url);
+        } else {
+          setSelectedProvider(onlineProviders[0].id);
+          setEndpointUrl(onlineProviders[0].base_url);
+        }
+      } else {
+        setSelectedProvider(d.api_mode === "openai" ? "lmstudio" : "ollama");
+        setEndpointUrl(d.configured_host || "http://localhost:11434");
+      }
     } catch {
-      /* ignore */
+      /* offline — defaults stay */
     }
     setLoading(false);
   }, []);
@@ -62,20 +86,22 @@ export function OllamaPage() {
     fetchAll();
   }, [fetchAll]);
 
+  useEffect(() => {
+    if (currentProvider?.base_url) {
+      setEndpointUrl(currentProvider.base_url);
+    }
+  }, [selectedProvider, currentProvider]);
+
   const testConnection = async () => {
     setTesting(true);
     setTestResult(null);
     try {
-      const r = await apiPost<TestResult>("/api/ollama/test", { host: editHost, model: editModel });
+      const r = await apiPost<TestResult>("/api/ollama/test", { host: endpointUrl, model: selectedModel });
       setTestResult(r);
     } catch (e) {
       setTestResult({
-        success: false,
-        host: editHost,
-        reachable: false,
-        model_found: false,
-        models: [],
-        error: String(e),
+        success: false, host: endpointUrl, reachable: false,
+        model_found: false, models: [], error: String(e),
       });
     }
     setTesting(false);
@@ -85,12 +111,15 @@ export function OllamaPage() {
     setSaving(true);
     setSaveMsg(null);
     try {
-      await apiPost("/api/settings", { ollama_host: editHost, ollama_model: editModel });
-      setSaveMsg("Saved. Re-checking connection...");
-      const st = await apiGet<StatusResult>("/api/ollama/status").catch(() => null);
-      setStatus(st);
-      setSaveMsg(st?.running ? "Connected and saved." : "Saved, but host not reachable.");
-    } catch (_e) {
+      const apiMode = selectedProvider === "lmstudio" ? "openai" : "ollama";
+      await apiPost("/api/settings", {
+        ollama_host: endpointUrl,
+        ollama_model: selectedModel,
+        api_mode: apiMode,
+        openai_chat_model: apiMode === "openai" ? selectedModel : undefined,
+      });
+      setSaveMsg(providerOnline ? "Connected and saved." : "Saved, but provider not reachable.");
+    } catch {
       setSaveMsg("Failed to save.");
     }
     setSaving(false);
@@ -107,86 +136,120 @@ export function OllamaPage() {
 
       {loading && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+          <Loader2 className="h-4 w-4 animate-spin" /> Detecting providers...
         </div>
       )}
 
       {/* Connection status */}
       <Card>
         <div className="flex items-center gap-3">
-          {status?.running ? (
+          {loading ? (
+            <Loader2 className="h-6 w-6 text-muted-foreground shrink-0 animate-spin" />
+          ) : providerOnline ? (
             <CheckCircle className="h-6 w-6 text-green-400 shrink-0" />
           ) : (
             <XCircle className="h-6 w-6 text-red-400 shrink-0" />
           )}
           <div className="min-w-0">
-            <CardTitle>{status?.running ? "Connected" : "Not reachable"}</CardTitle>
-            <p className="text-sm text-muted-foreground truncate">{status?.host ?? editHost}</p>
+            <CardTitle>
+              {loading ? "Detecting..." : providerOnline ? "Connected" : "Not reachable"}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground truncate">
+              {currentProvider?.label ?? selectedProvider} — {endpointUrl || "no endpoint"}
+              {!loading && !providerOnline && currentProvider?.error && (
+                <> <span className="text-amber-400">({currentProvider.error})</span></>
+              )}
+            </p>
           </div>
           <Button
-            size="sm"
-            variant="ghost"
-            className="ml-auto shrink-0"
-            onClick={fetchAll}
-            disabled={loading}
+            size="sm" variant="ghost" className="ml-auto shrink-0"
+            onClick={fetchAll} disabled={loading}
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
       </Card>
 
-      {/* Configuration */}
+      {/* Provider & model selection */}
       <Card>
-        <CardTitle>Endpoint</CardTitle>
+        <CardTitle>Provider</CardTitle>
         <div className="space-y-3 mt-3">
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Host URL</label>
-            <Input
-              value={editHost}
-              onChange={(e) => setEditHost(e.target.value)}
-              placeholder="http://localhost:11434"
-            />
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Use <code className="text-primary">http://127.0.0.1:1234</code> for LM Studio.
-            </p>
+            <label className="text-xs text-muted-foreground block mb-1">
+              Local LLM provider
+            </label>
+            <Select
+              value={selectedProvider}
+              onChange={(e) => setSelectedProvider(e.target.value)}
+              data-testid="provider-select"
+            >
+              <option value="ollama">
+                Ollama {currentProviders.find((p) => p.id === "ollama")?.online ? "(online)" : "(offline)"}
+              </option>
+              <option value="lmstudio">
+                LM Studio {currentProviders.find((p) => p.id === "lmstudio")?.online ? "(online)" : "(offline)"}
+              </option>
+            </Select>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Model name</label>
+            <label className="text-xs text-muted-foreground block mb-1">
+              Endpoint URL
+            </label>
             <Input
-              value={editModel}
-              onChange={(e) => setEditModel(e.target.value)}
-              placeholder="qwen2.5:27b"
+              value={endpointUrl}
+              onChange={(e) => setEndpointUrl(e.target.value)}
+              placeholder="http://localhost:11434"
+              data-testid="endpoint-input"
             />
             <p className="text-[10px] text-muted-foreground mt-1">
-              Used for both extraction (Qwen 2.5 recommended) and semantic embeddings
-              (nomic-embed-text).
+              Auto-detected from provider. Override for custom endpoints.
             </p>
           </div>
         </div>
       </Card>
 
-      {/* Available models */}
-      {status?.models_available && status.models_available.length > 0 && (
-        <Card>
-          <CardTitle>Available models</CardTitle>
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {status.models_available.map((m) => (
-              <button
-                key={m}
-                onClick={() => setEditModel(m)}
-                className={`text-xs px-2 py-1 rounded-full border transition-colors ${
-                  m.startsWith(status.model_configured)
-                    ? "bg-primary/20 border-primary/40 text-primary"
-                    : "bg-muted/40 border-border text-muted-foreground hover:border-primary/40"
-                }`}
+      {/* Model selection */}
+      <Card>
+        <CardTitle>Model</CardTitle>
+        <div className="mt-3">
+          {providerModels.length > 0 ? (
+            <>
+              <label className="text-xs text-muted-foreground block mb-1">
+                Select model ({providerModels.length} available)
+              </label>
+              <Select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                data-testid="model-select"
               >
-                <Brain className="h-3 w-3 inline mr-1" />
-                {m}
-              </button>
-            ))}
-          </div>
-        </Card>
-      )}
+                <option value="">— Select a model —</option>
+                {providerModels.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </Select>
+            </>
+          ) : (
+            <>
+              <label className="text-xs text-muted-foreground block mb-1">
+                Model name
+              </label>
+              <Input
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                placeholder={selectedProvider === "lmstudio" ? "qwen/qwen3.6-27b" : "qwen2.5:27b"}
+                data-testid="model-input"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {providerOnline ? "Models could not be fetched." : "Provider offline — enter model name manually."}
+              </p>
+            </>
+          )}
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Used for both extraction (Qwen 2.5 recommended) and semantic embeddings
+            (nomic-embed-text).
+          </p>
+        </div>
+      </Card>
 
       {/* Test result */}
       {testResult && (
@@ -196,6 +259,7 @@ export function OllamaPage() {
               ? "border-green-500/40 bg-green-500/10"
               : "border-amber-500/40 bg-amber-500/10"
           }`}
+          data-testid="test-result"
         >
           <p>
             <strong>{testResult.reachable ? "Reachable" : "Not reachable"}</strong> —{" "}
@@ -204,18 +268,18 @@ export function OllamaPage() {
           {testResult.reachable && (
             <p className="text-xs text-muted-foreground mt-1">
               {testResult.models.length} model(s) available
-              {testResult.model_found ? "" : `, "${editModel}" not found`}
+              {testResult.model_found ? "" : `, "${selectedModel}" not found`}
             </p>
           )}
           {testResult.error && <p className="text-xs text-amber-400 mt-1">{testResult.error}</p>}
         </div>
       )}
 
-      {saveMsg && <div className="text-sm text-primary">{saveMsg}</div>}
+      {saveMsg && <div className="text-sm text-primary" data-testid="save-msg">{saveMsg}</div>}
 
       {/* Actions */}
       <div className="flex gap-2">
-        <Button onClick={testConnection} disabled={testing || !editHost}>
+        <Button onClick={testConnection} disabled={testing || !endpointUrl} data-testid="test-btn">
           {testing ? (
             <Loader2 className="h-4 w-4 animate-spin mr-1" />
           ) : (
@@ -223,7 +287,7 @@ export function OllamaPage() {
           )}
           Test Connection
         </Button>
-        <Button variant="default" onClick={saveSettings} disabled={saving}>
+        <Button variant="default" onClick={saveSettings} disabled={saving} data-testid="save-btn">
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin mr-1" />
           ) : (
@@ -237,18 +301,23 @@ export function OllamaPage() {
         <CardTitle>How this works</CardTitle>
         <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc pl-5">
           <li>
-            Extraction prompt calls Ollama to convert cached HTML into structured tropes/examples.
+            Provider and model are auto-detected on page load by probing local endpoints.
           </li>
           <li>
-            Embeddings (semantic search) use <code className="text-primary">nomic-embed-text</code>.
+            Ollama uses native <code className="text-primary">/api/tags</code>; LM Studio uses{" "}
+            <code className="text-primary">/v1/models</code> (OpenAI-compatible API).
+          </li>
+          <li>
+            Extraction prompts call the selected model to convert cached HTML into structured
+            tropes and examples.
+          </li>
+          <li>
+            Embeddings (semantic search) use{" "}
+            <code className="text-primary">nomic-embed-text</code>.
           </li>
           <li>
             Settings are saved to <code className="text-primary">data/settings.json</code> and
             persist across restarts.
-          </li>
-          <li>
-            Env vars (<code className="text-primary">TVTROPES_MCP_OLLAMA_*</code>) serve as defaults
-            if settings.json is missing.
           </li>
         </ul>
       </Card>

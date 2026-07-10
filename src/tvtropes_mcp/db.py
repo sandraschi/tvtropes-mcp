@@ -87,6 +87,22 @@ def namespace_list(db_path: str | None = None) -> list[dict[str, Any]]:
     return list_namespaces(db_path)
 
 
+def works_in_namespace(
+    namespace: str,
+    db_path: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    from scraper.db import get_conn as _gconn
+
+    with _gconn(db_path) as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT work_name FROM work_tropes WHERE work_ns=? ORDER BY work_name LIMIT ? OFFSET ?",
+            (namespace, limit, offset),
+        ).fetchall()
+        return [{"work_name": r["work_name"], "namespace": namespace} for r in rows]
+
+
 def random_trope_get(db_path: str | None = None) -> dict[str, Any] | None:
     result = random_trope(db_path)
     if result is None:

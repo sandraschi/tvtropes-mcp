@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { LoggerProvider } from "@/context/LoggerContext";
+import { useZoom } from "@/lib/use-zoom";
 import { ChatPage } from "@/pages/ChatPage";
 import { Dashboard } from "@/pages/Dashboard";
 import { HelpPage } from "@/pages/HelpPage";
@@ -38,6 +39,7 @@ function LookupRedirect() {
 }
 
 export default function App() {
+  useZoom();
   return (
     <LoggerProvider>
       <BrowserRouter>

@@ -42,10 +42,14 @@ class CrawlScheduler:
         self._pages_crawled = 0
         self._pages_blocked = 0
         self._errors = 0
+        self._current_url = ""
+        self._paused = False
         self._bootstrapped = False
         self._maintenance_counter = 0
         self._last_backup_time = time.time()
         self._last_settings_reload = time.time()
+        self._milestones = {"pages": 0, "blocked": 0, "errors": 0}
+        self._next_milestone = 100
 
     def start(self) -> None:
         if self._running:
@@ -110,6 +114,9 @@ class CrawlScheduler:
 
     def _run_loop(self) -> None:
         while not self._stop_event.is_set():
+            if self._paused:
+                self._stop_event.wait(5)
+                continue
             try:
                 self._crawl_one()
                 self._maintenance_counter += 1
@@ -119,6 +126,18 @@ class CrawlScheduler:
                 self._errors += 1
                 log.error(f"Crawl loop error: {e}", exc_info=True)
             time.sleep(1)
+
+    def pause(self) -> None:
+        self._paused = True
+        log.info("Crawler paused")
+
+    def resume(self) -> None:
+        self._paused = False
+        log.info("Crawler resumed")
+
+    @property
+    def is_paused(self) -> bool:
+        return self._paused
 
     def _check_maintenance(self) -> None:
         now = time.time()
@@ -160,6 +179,7 @@ class CrawlScheduler:
 
         page = pop_pending(self.db_path)
         if page is None:
+            self._current_url = ""
             if count_crawled(self.db_path) > 0:
                 log.debug("No pending pages — sleeping")
                 time.sleep(30)
@@ -169,12 +189,14 @@ class CrawlScheduler:
             return
 
         url = page["url"]
+        self._current_url = url
         result = self.crawler.fetch(url)
         if result["blocked"]:
             from scraper.db import mark_blocked
 
             mark_blocked(self.db_path, page["id"])
             self._pages_blocked += 1
+            self._current_url = ""
             log.warning(f"Blocked: {url}")
             time.sleep(60)
             return
@@ -182,6 +204,7 @@ class CrawlScheduler:
         if not result["success"]:
             mark_failed(self.db_path, page["id"], result.get("status_code"))
             self._errors += 1
+            self._current_url = ""
             return
 
         html = result["html"]
@@ -199,6 +222,11 @@ class CrawlScheduler:
         if self._pages_crawled % 100 == 0:
             stats = get_crawl_stats(self.db_path)
             log.info(f"Crawl progress: {stats}")
+            log.info(f"MILESTONE: crawled={self._pages_crawled} daily={stats.get('daily',0)} db_mb=?")
+
+        if self._pages_crawled >= self._next_milestone:
+            self._milestones["pages"] = self._pages_crawled
+            self._next_milestone = self._pages_crawled + (1000 if self._pages_crawled >= 10000 else 500)
 
     def _bootstrap(self) -> None:
         log.info("Bootstrapping seed URLs...")
@@ -210,6 +238,8 @@ class CrawlScheduler:
         return {
             "running": self._running,
             "session_id": self._session_id,
+            "current_url": self._current_url,
+            "paused": self._paused,
             "pages_crawled_this_session": self._pages_crawled,
             "pages_blocked_this_session": self._pages_blocked,
             "errors_this_session": self._errors,

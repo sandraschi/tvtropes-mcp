@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import logging.handlers
+import sys
 import threading
 import time
 from pathlib import Path
@@ -48,8 +49,17 @@ _ring = LogRingHandler()
 
 
 def install_log_ring(data_dir: str | Path | None = None) -> None:
-    """Install both the ring buffer handler and a rotating file handler."""
+    """Install ring buffer handler, rotating file handler, and ERROR-only stderr.
+
+    INFO/DEBUG goes to the log file only. ERROR also goes to stderr.
+    """
     root = logging.getLogger()
+
+    # Remove any existing stderr StreamHandlers (typically from basicConfig)
+    for h in list(root.handlers):
+        if isinstance(h, logging.StreamHandler) and h.stream in (sys.stderr, sys.stdout):
+            root.removeHandler(h)
+
     root.addHandler(_ring)
 
     if data_dir is None:
@@ -61,7 +71,7 @@ def install_log_ring(data_dir: str | Path | None = None) -> None:
 
     file_handler = logging.handlers.RotatingFileHandler(
         log_dir / "tvtropes.log",
-        maxBytes=10 * 1024 * 1024,  # 10 MB
+        maxBytes=10 * 1024 * 1024,
         backupCount=5,
         encoding="utf-8",
     )
@@ -70,6 +80,15 @@ def install_log_ring(data_dir: str | Path | None = None) -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     ))
     root.addHandler(file_handler)
+
+    # ERROR-only stderr handler — INFO/DEBUG stay out of the console
+    err_handler = logging.StreamHandler(sys.stderr)
+    err_handler.setLevel(logging.ERROR)
+    err_handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    ))
+    root.addHandler(err_handler)
 
 
 def get_recent(

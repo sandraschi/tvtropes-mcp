@@ -238,3 +238,43 @@ def extract_page_metadata(soup: BeautifulSoup, url: str) -> dict[str, Any]:
         "trope_links": extract_trope_links(soup),
         "is_work": is_work_namespace(namespace) if namespace else False,
     }
+
+
+def extract_trope_from_html(html: str, url: str) -> dict[str, Any]:
+    """Extract trope data from TVTropes HTML directly (no LLM needed).
+
+    Returns same format as LLM extractor so it can be used as fallback.
+
+    ## Return Format
+    {"success": bool, "title": str, "description": str, "laconic": str|None,
+     "examples": [], "related": [], "categories": []}
+    """
+    soup = BeautifulSoup(html, "lxml")
+    meta = extract_page_metadata(soup, url)
+
+    # Extract categories from page footer
+    categories = []
+    foldertags = soup.find("div", class_="foldertag")
+    if foldertags:
+        for a in foldertags.find_all("a"):
+            categories.append(a.get_text(strip=True))
+
+    # Extract related tropes from trope_links
+    related = []
+    for tl in meta.get("trope_links", []):
+        related.append({
+            "relation_type": "Related",
+            "namespace": tl.get("namespace", "Main"),
+            "page_name": tl.get("page_name", ""),
+        })
+
+    return {
+        "success": True,
+        "title": meta.get("title") or meta.get("page_name") or url,
+        "description": meta.get("description") or "",
+        "laconic": meta.get("laconic"),
+        "examples": [],
+        "related": related,
+        "categories": categories,
+        "_source": "html",
+    }

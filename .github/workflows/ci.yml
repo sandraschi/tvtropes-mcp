@@ -2,14 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [master]
-  pull_request:
-    branches: [master]
+    tags: ["v*"]
+  workflow_dispatch:
 
 jobs:
   python:
     name: Python (lint + test)
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -37,7 +36,7 @@ jobs:
 
   frontend:
     name: Frontend (biome + build)
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     defaults:
       run:
         working-directory: web_sota
@@ -62,7 +61,7 @@ jobs:
 
   pre-commit:
     name: Pre-commit
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 

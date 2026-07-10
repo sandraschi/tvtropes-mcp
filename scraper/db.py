@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS pages (
     retry_count INTEGER DEFAULT 0,
     http_status INTEGER,
     blocked     BOOLEAN DEFAULT 0,
-    content_hash TEXT
+    content_hash TEXT,
+    priority    INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS tropes (
@@ -131,9 +132,17 @@ class Config:
     ollama_model: str = "qwen2.5:27b"
     ollama_timeout_s: float = 120.0
     ollama_concurrent: int = 2
+    api_mode: str = "ollama"
+    openai_chat_model: str = "qwen/qwen3.6-27b"
+    openai_embedding_model: str = "text-embedding-nomic-embed-text-v1.5"
+    openai_timeout_s: float = 120.0
+    openai_concurrent: int = 2
     cache_dir: str = "scraper/cache"
     compress: bool = True
     db_path: str = "data/tvtropes.db"
+    scraping_api_enabled: bool = False
+    scraping_api_provider: str = "scrapieapi"  # scrapieapi | scrapingbee | zenrows
+    scraping_api_key: str = ""
 
 
 def load_config(config_path: str | Path = "scraper/config.yaml") -> Config:
@@ -146,6 +155,8 @@ def load_config(config_path: str | Path = "scraper/config.yaml") -> Config:
     n = raw.get("namespaces", {})
     o = raw.get("ollama", {})
     s = raw.get("storage", {})
+    oai = raw.get("openai", {})
+    sa = raw.get("scraping_api", {})
     return Config(
         min_delay_s=c.get("min_delay_s", 8.0),
         max_delay_s=c.get("max_delay_s", 15.0),
@@ -166,6 +177,14 @@ def load_config(config_path: str | Path = "scraper/config.yaml") -> Config:
         db_path=s.get("db_path", "data/tvtropes.db"),
         cache_dir=s.get("cache_dir", "scraper/cache"),
         compress=s.get("compress", True),
+        api_mode=raw.get("api_mode", "ollama"),
+        openai_chat_model=oai.get("chat_model", "qwen/qwen3.6-27b"),
+        openai_embedding_model=oai.get("embedding_model", "text-embedding-nomic-embed-text-v1.5"),
+        openai_timeout_s=oai.get("timeout_s", 120.0),
+        openai_concurrent=oai.get("concurrent", 2),
+        scraping_api_enabled=sa.get("enabled", False),
+        scraping_api_provider=sa.get("provider", "scrapieapi"),
+        scraping_api_key=sa.get("api_key", ""),
     )
 
 
@@ -195,6 +214,11 @@ def init_db(db_path: str | Path) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with get_conn(db_path) as conn:
         conn.executescript(SCHEMA_SQL)
+        # Migration: add priority column if missing (pre-existing DBs)
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(pages)").fetchall()]
+        if "priority" not in cols:
+            conn.execute("ALTER TABLE pages ADD COLUMN priority INTEGER DEFAULT 0")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pages_priority ON pages(priority DESC)")
         conn.commit()
 
 
@@ -225,7 +249,7 @@ def pop_pending(db_path: str | Path) -> dict[str, Any] | None:
     with get_conn(db_path) as conn:
         row = conn.execute(
             "SELECT id, url, namespace, page_name, retry_count FROM pages "
-            "WHERE status='pending' ORDER BY RANDOM() LIMIT 1"
+            "WHERE status='pending' ORDER BY priority DESC, RANDOM() LIMIT 1"
         ).fetchone()
         if row is None:
             return None
@@ -278,7 +302,7 @@ def mark_extracted(db_path: str | Path, page_id: int) -> None:
         conn.commit()
 
 
-def queue_urls(db_path: str | Path, urls: list[dict[str, str]]) -> int:
+def queue_urls(db_path: str | Path, urls: list[dict[str, str]], priority: int = 0) -> int:
     with get_conn(db_path) as conn:
         before = conn.total_changes
         for u in urls:
@@ -286,6 +310,11 @@ def queue_urls(db_path: str | Path, urls: list[dict[str, str]]) -> int:
                 "INSERT OR IGNORE INTO pages(url, namespace, page_name) VALUES (?, ?, ?)",
                 (u["url"], u.get("namespace"), u.get("page_name")),
             )
+            if priority:
+                conn.execute(
+                    "UPDATE pages SET priority = MAX(priority, ?) WHERE url = ?",
+                    (priority, u["url"]),
+                )
         conn.commit()
         return conn.total_changes - before
 
@@ -624,6 +653,15 @@ def get_recent_crawl_sessions(db_path: str | Path, limit: int = 10) -> list[dict
             (limit,),
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def has_active_crawl_session(db_path: str | Path) -> bool:
+    """True if a crawl session is running (no ended_at)."""
+    with get_conn(db_path) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM crawl_log WHERE ended_at IS NULL LIMIT 1"
+        ).fetchone()
+        return row is not None
 
 
 # ─── Helpers ───────────────────────────────────────────────────────

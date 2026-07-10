@@ -17,9 +17,15 @@ DEFAULTS: dict[str, Any] = {
     "ollama_host": "http://localhost:11434",
     "ollama_model": "qwen2.5:27b",
     "ollama_timeout": 120.0,
+    "api_mode": "ollama",
+    "openai_chat_model": "qwen/qwen3.6-27b",
+    "openai_embedding_model": "text-embedding-nomic-embed-text-v1.5",
     "scraper_delay_min": 8.0,
     "scraper_delay_max": 15.0,
     "scraper_daily_budget": 7000,
+    "scraping_api_enabled": False,
+    "scraping_api_provider": "scrapieapi",
+    "scraping_api_key": "",
 }
 
 
@@ -54,9 +60,15 @@ def get_all() -> dict[str, Any]:
         "ollama_host": file_settings.get("ollama_host", env.ollama_host),
         "ollama_model": file_settings.get("ollama_model", env.ollama_model),
         "ollama_timeout": file_settings.get("ollama_timeout", env.ollama_timeout),
+        "api_mode": file_settings.get("api_mode", env.api_mode),
+        "openai_chat_model": file_settings.get("openai_chat_model", env.openai_chat_model),
+        "openai_embedding_model": file_settings.get("openai_embedding_model", env.openai_embedding_model),
         "scraper_delay_min": file_settings.get("scraper_delay_min", env.scraper_delay_min),
         "scraper_delay_max": file_settings.get("scraper_delay_max", env.scraper_delay_max),
         "scraper_daily_budget": file_settings.get("scraper_daily_budget", env.scraper_daily_budget),
+        "scraping_api_enabled": file_settings.get("scraping_api_enabled", False),
+        "scraping_api_provider": file_settings.get("scraping_api_provider", "scrapieapi"),
+        "scraping_api_key": file_settings.get("scraping_api_key", ""),
         "data_dir": str(env.resolved_data_dir()),
         "host": env.host,
         "port": env.port,
@@ -68,7 +80,9 @@ def update(overrides: dict[str, Any]) -> dict[str, Any]:
     """Update specific settings keys and persist."""
     current = _read()
     allowed = {"ollama_host", "ollama_model", "ollama_timeout",
-               "scraper_delay_min", "scraper_delay_max", "scraper_daily_budget"}
+               "api_mode", "openai_chat_model", "openai_embedding_model",
+               "scraper_delay_min", "scraper_delay_max", "scraper_daily_budget",
+               "scraping_api_enabled", "scraping_api_provider", "scraping_api_key"}
     changed = []
     for key in allowed:
         if key in overrides and overrides[key] is not None:
@@ -76,6 +90,9 @@ def update(overrides: dict[str, Any]) -> dict[str, Any]:
                 val = overrides[key]
                 if isinstance(val, str) and val.strip():
                     current[key] = val.strip()
+                    changed.append(key)
+                elif isinstance(val, bool):
+                    current[key] = val
                     changed.append(key)
                 elif isinstance(val, (int, float)):
                     current[key] = float(val)

@@ -1,4 +1,6 @@
-﻿default_shell := "powershell.exe"
+import 'scripts/just/fleet.just'
+
+default_shell := "powershell.exe"
 
 # Open the interactive recipe dashboard in the browser
 default:
@@ -138,3 +140,14 @@ clean:
     Remove-Item -Recurse -Force .venv, __pycache__, .pytest_cache, .ruff_cache, web_sota/node_modules -ErrorAction SilentlyContinue
     Get-ChildItem -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
 
+# ── Tauri Native ───────────────────────────────────────────────────────────────
+
+# Build Tauri native desktop app (full pipeline: frontend + backend)
+build-native:
+    Set-Location '{{justfile_directory()}}\native'
+    $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
+    npx @tauri-apps/cli build
+
+# Run the CUA smoke test against the installed NSIS app
+cua-nsis-test:
+    uv run python scripts/cua-smoke.py

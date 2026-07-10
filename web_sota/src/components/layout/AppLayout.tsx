@@ -1,6 +1,8 @@
 import {
   BookMarked,
   Brain,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   HelpCircle,
   Home,
@@ -11,7 +13,6 @@ import {
   Menu,
   MessageSquare,
   Settings,
-  X,
 } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
@@ -48,13 +49,16 @@ export function AppLayout() {
         <div className="h-14 flex items-center gap-2 px-4 border-b border-border/60">
           <BookMarked className="h-8 w-8 text-primary shrink-0" />
           {open && (
-            <div>
+            <div className="flex-1">
               <div className="font-bold leading-tight">tvtropes-mcp</div>
               <div className="text-[10px] text-muted-foreground">Vite · 10965</div>
             </div>
           )}
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setOpen(!open)}>
+            {open ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </Button>
         </div>
-        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto [&::-webkit-scrollbar]:hidden">
           {nav.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -73,11 +77,6 @@ export function AppLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-2 border-t border-border/60">
-          <Button variant="ghost" className="w-full" size="sm" onClick={() => setOpen(!open)}>
-            {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </Button>
-        </div>
       </aside>
 
       {/* Mobile header */}

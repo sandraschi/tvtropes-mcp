@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import json as _json
 import logging
+import time
 from typing import Any
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
 
 from tvtropes_mcp.config import load_settings
 from tvtropes_mcp.db import (
@@ -31,22 +33,109 @@ mcp_http = mcp.http_app(path="/mcp")
 router = APIRouter(prefix="/api")
 
 _scraper = ScraperManager(_db_path)
+_start_time = time.time()
 
 
 @router.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "tvtropes-mcp"}
+async def health() -> dict[str, Any]:
+    from tvtropes_mcp.server import mcp as _mcp
+
+    tools = await _mcp.list_tools()
+    scraper_running = _scraper.get_status().get("crawler", {}).get("running", False)
+    return {
+        "status": "ok",
+        "service": "tvtropes-mcp",
+        "version": "0.2.0",
+        "uptime_seconds": int(time.time() - _start_time),
+        "tool_count": len(tools),
+        "providers": {
+            "scraper": f"scraper:{'running' if scraper_running else 'stopped'}",
+            "ollama": f"{_settings.ollama_host}/{_settings.ollama_model}",
+        },
+    }
+
+
+@router.get("/v1/diagnostics")
+async def api_diagnostics() -> dict[str, Any]:
+    import platform as _platform
+    import shutil as _shutil
+
+    from tvtropes_mcp.server import mcp as _mcp
+
+    tools = await _mcp.list_tools()
+    tools_list = [{"name": t.name, "description": t.description} for t in tools]
+    disk = _shutil.disk_usage(_settings.resolved_data_dir())
+
+    return {
+        "status": "ok",
+        "server": "tvtropes-mcp",
+        "version": "0.2.0",
+        "uptime_seconds": int(time.time() - _start_time),
+        "tool_count": len(tools),
+        "tools": tools_list,
+        "system": {
+            "windows": True,
+            "cpu_count": getattr(_platform, "cpu_count", lambda: 0)(),
+            "disk_free_gb": round(disk.free / (1024**3), 1),
+        },
+        "errors": [],
+    }
 
 
 @router.get("/status")
 async def api_status() -> dict[str, Any]:
     stats = db_scraper_status(db_path=_db_path)
     mgr = _scraper.get_status()
+    crawler = mgr.get("crawler", {})
     stats["scraper"] = {
-        "state": "running" if mgr.get("crawler", {}).get("running") else "stopped",
-        **mgr.get("crawler", {}).get("crawl", {}),
+        "state": "running" if crawler.get("running") else "stopped",
+        "current_url": crawler.get("current_url", ""),
+        "pages_crawled_this_session": crawler.get("pages_crawled_this_session", 0),
+        **crawler.get("crawl", {}),
     }
+    stats["extractor"] = mgr.get("extractor", {"running": False})
     return stats
+
+
+@router.get("/events")
+async def api_events(request: Request):
+    """SSE endpoint — streams crawl/extraction events for live dashboard updates."""
+    from fastapi.responses import StreamingResponse
+
+    async def event_stream():
+        last_status = ""
+        while True:
+            if await request.is_disconnected():
+                break
+            mgr = _scraper.get_status()
+            crawler = mgr.get("crawler", {})
+            crawl = crawler.get("crawl", {})
+            url = crawler.get("current_url", "")
+            status_line = f"{crawler.get('running')}|{crawl.get('crawled',0)}|{crawl.get('pending',0)}|{crawl.get('extracted',0)}|{url}"
+            if status_line != last_status:
+                last_status = status_line
+                data = _json.dumps({
+                    "crawler_running": crawler.get("running"),
+                    "extractor_running": mgr.get("extractor", {}).get("running"),
+                    "current_url": url,
+                    "crawled": crawl.get("crawled", 0),
+                    "pending": crawl.get("pending", 0),
+                    "extracted": crawl.get("extracted", 0),
+                    "daily": crawl.get("daily", 0),
+                })
+                yield f"data: {data}\n\n"
+            await asyncio.sleep(3)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/shutdown")
+async def api_shutdown() -> dict[str, Any]:
+    """Gracefully stop the scraper and shut down the server."""
+    _scraper.stop_crawler()
+    import asyncio
+    asyncio.get_event_loop().stop()
+    return {"success": True, "message": "Shutting down"}
 
 
 @router.post("/scraper/start")
@@ -62,6 +151,16 @@ async def api_scraper_stop() -> dict[str, Any]:
 @router.get("/scraper/status")
 async def api_scraper_status() -> dict[str, Any]:
     return _scraper.get_status()
+
+
+@router.post("/scraper/pause")
+async def api_scraper_pause() -> dict[str, Any]:
+    return _scraper.pause_crawler()
+
+
+@router.post("/scraper/resume")
+async def api_scraper_resume() -> dict[str, Any]:
+    return _scraper.resume_crawler()
 
 
 @router.post("/scraper/extract")
@@ -156,11 +255,11 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
                     links_found += len(entries)
                     if len(sample_links) < 10:
                         sample_links.extend(
-                            {"ns": e["namespace"], "name": e["page_name"]}
-                            for e in entries[: 10 - len(sample_links)]
+                            {"ns": e["namespace"], "name": e["page_name"]} for e in entries[: 10 - len(sample_links)]
                         )
                     added = await loop.run_in_executor(
-                        None, lambda e=entries: queue_urls(_db_path, e),
+                        None,
+                        lambda e=entries: queue_urls(_db_path, e, priority=1),
                     )
                     queued += added
                 await asyncio.sleep(1)
@@ -265,14 +364,30 @@ async def api_scraper_backup() -> dict[str, Any]:
 
 @router.get("/ollama/status")
 async def api_ollama_status() -> dict[str, Any]:
-    """Check if Ollama (or LMStudio) is running and has the configured model."""
+    """Check if Ollama / LM Studio is running and has the configured model."""
     import httpx
 
     from tvtropes_mcp.settings_manager import get_all as _get_sett
 
     s = _get_sett()
+    api_mode = s.get("api_mode", "ollama")
     try:
         async with httpx.AsyncClient(timeout=5) as client:
+            if api_mode == "openai":
+                r = await client.get(f"{s['ollama_host']}/v1/models")
+                if r.status_code == 200:
+                    models = r.json().get("data", [])
+                    model_names = [m["id"] for m in models]
+                    chat_model = s.get("openai_chat_model", "")
+                    configured_found = any(chat_model in m for m in model_names) if chat_model else True
+                    return {
+                        "running": True,
+                        "host": s["ollama_host"],
+                        "model_configured": chat_model,
+                        "model_found": configured_found,
+                        "models_available": model_names,
+                    }
+                return {"running": False, "host": s["ollama_host"], "error": f"HTTP {r.status_code}"}
             r = await client.get(f"{s['ollama_host']}/api/tags")
             if r.status_code == 200:
                 models = r.json().get("models", [])
@@ -292,18 +407,35 @@ async def api_ollama_status() -> dict[str, Any]:
 
 @router.post("/ollama/chat")
 async def api_ollama_chat(body: dict[str, Any]) -> dict[str, Any]:
-    """Simple Ollama chat endpoint for the ChatPage AI assistant."""
+    """Simple LLM chat endpoint for the ChatPage AI assistant."""
     import httpx
 
-    host = body.get("host", _settings.ollama_host)
-    model = body.get("model", _settings.ollama_model)
+    from tvtropes_mcp.settings_manager import get_all as _get_sett
+
+    s = _get_sett()
+    host = body.get("host", s["ollama_host"])
+    model = body.get("model", s.get("openai_chat_model") if s.get("api_mode") == "openai" else s.get("ollama_model"))
     messages = body.get("messages", [])
 
     if not messages:
         return {"response": "No messages provided.", "error": True}
 
     try:
-        async with httpx.AsyncClient(timeout=_settings.ollama_timeout) as client:
+        async with httpx.AsyncClient(timeout=s.get("ollama_timeout", 120)) as client:
+            if s.get("api_mode") == "openai":
+                openai_msgs = []
+                for m in messages:
+                    role = "system" if m.get("role") == "system" else m.get("role", "user")
+                    openai_msgs.append({"role": role, "content": m.get("content", "")})
+                r = await client.post(
+                    f"{host}/v1/chat/completions",
+                    json={"model": model, "messages": openai_msgs, "temperature": 0.7},
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    return {"response": content, "error": False}
+                return {"response": f"LLM HTTP {r.status_code}", "error": True}
             r = await client.post(
                 f"{host}/api/chat",
                 json={"model": model, "messages": messages, "stream": False},
@@ -313,18 +445,25 @@ async def api_ollama_chat(body: dict[str, Any]) -> dict[str, Any]:
                 return {"response": data.get("message", {}).get("content", ""), "error": False}
             return {"response": f"Ollama HTTP {r.status_code}", "error": True}
     except Exception as e:
-        return {"response": f"Ollama error: {e}", "error": True}
+        return {"response": f"LLM error: {e}", "error": True}
 
 
 @router.post("/ollama/test")
 async def api_ollama_test(body: dict[str, Any]) -> dict[str, Any]:
-    """Test a specific Ollama/LMStudio host+model combination."""
+    """Test a specific LLM host+model combination."""
     import httpx
 
     host = body.get("host", "http://localhost:11434")
     model = body.get("model", "")
     try:
         async with httpx.AsyncClient(timeout=10) as client:
+            # Try OpenAI-compatible /v1/models first, fallback to Ollama /api/tags
+            r = await client.get(f"{host}/v1/models")
+            if r.status_code == 200:
+                models = r.json().get("data", [])
+                model_names = [m["id"] for m in models] if models else []
+                found = any(model in m for m in model_names) if model and model_names else True
+                return {"success": True, "host": host, "reachable": True, "model_found": found, "models": model_names}
             r = await client.get(f"{host}/api/tags")
             if r.status_code == 200:
                 models = r.json().get("models", [])
@@ -334,6 +473,60 @@ async def api_ollama_test(body: dict[str, Any]) -> dict[str, Any]:
             return {"success": False, "host": host, "reachable": False, "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"success": False, "host": host, "reachable": False, "error": str(e)}
+
+
+@router.get("/llm/discover")
+async def api_llm_discover() -> dict[str, Any]:
+    """Probe local LLM endpoints (Ollama, LM Studio) and return discovered models."""
+    import httpx
+
+    from tvtropes_mcp.settings_manager import get_all as _get_sett
+
+    s = _get_sett()
+    probes: list[tuple[str, str, str]] = [
+        ("ollama", "Ollama", "http://localhost:11434/api/tags"),
+        ("lmstudio", "LM Studio", "http://localhost:1234/v1/models"),
+    ]
+    providers: list[dict[str, Any]] = []
+
+    async with httpx.AsyncClient(timeout=3.0) as client:
+        for pid, label, url in probes:
+            try:
+                resp = await client.get(url)
+                if resp.status_code < 500:
+                    data = resp.json()
+                    base_url = url.split("/api")[0].split("/v1")[0]
+                    if pid == "ollama":
+                        models = [m["name"] for m in data.get("models", [])]
+                    else:
+                        models = [m["id"] for m in data.get("data", [])]
+                    providers.append({
+                        "id": pid,
+                        "label": label,
+                        "base_url": base_url,
+                        "models": models,
+                        "online": True,
+                    })
+                else:
+                    providers.append({
+                        "id": pid, "label": label, "base_url": url.rsplit("/", 1)[0],
+                        "models": [], "online": False,
+                        "error": f"HTTP {resp.status_code}",
+                    })
+            except Exception as exc:
+                providers.append({
+                    "id": pid, "label": label, "base_url": "",
+                    "models": [], "online": False,
+                    "error": str(exc),
+                })
+
+    return {
+        "providers": providers,
+        "configured_host": s.get("ollama_host", "http://localhost:11434"),
+        "configured_model": s.get("ollama_model", ""),
+        "api_mode": s.get("api_mode", "ollama"),
+        "configured_openai_model": s.get("openai_chat_model", ""),
+    }
 
 
 @router.get("/bridge")
@@ -393,9 +586,20 @@ async def api_lookup_title(
         "comic": ["ComicBook", "Main"],
     }
     namespaces = ns_map.get(hint or "", [hint] if hint else None) or [
-        "Film", "Series", "Anime", "Literature", "VideoGame",
-        "Main", "Manga", "ComicBook", "VisualNovel", "Music",
-        "WesternAnimation", "Webcomic", "WebOriginal", "Theatre",
+        "Film",
+        "Series",
+        "Anime",
+        "Literature",
+        "VideoGame",
+        "Main",
+        "Manga",
+        "ComicBook",
+        "VisualNovel",
+        "Music",
+        "WesternAnimation",
+        "Webcomic",
+        "WebOriginal",
+        "Theatre",
     ]
 
     # Normalize title: strip spaces, handle common variations
@@ -415,8 +619,7 @@ async def api_lookup_title(
                 if not cand:
                     continue
                 row = conn.execute(
-                    "SELECT namespace, page_name, title FROM tropes "
-                    "WHERE namespace=? AND page_name LIKE ? LIMIT 1",
+                    "SELECT namespace, page_name, title FROM tropes WHERE namespace=? AND page_name LIKE ? LIMIT 1",
                     (ns, cand),
                 ).fetchone()
                 if row:
@@ -500,7 +703,8 @@ async def api_pages(
 
     with get_conn(_db_path) as conn:
         total = conn.execute(
-            f"SELECT COUNT(*) FROM pages WHERE {where}", params  # noqa: S608
+            f"SELECT COUNT(*) FROM pages WHERE {where}",
+            params,  # noqa: S608
         ).fetchone()[0]
         cols = "id, url, namespace, page_name, status, crawled_at, http_status, blocked, retry_count"
         rows = conn.execute(
@@ -522,9 +726,7 @@ async def api_page_content(page_id: int) -> dict[str, Any]:
     from tvtropes_mcp.content_extractor import extract_main_content, extract_text_only
 
     with get_conn(_db_path) as conn:
-        row = conn.execute(
-            "SELECT url, content_hash FROM pages WHERE id=?", (page_id,)
-        ).fetchone()
+        row = conn.execute("SELECT url, content_hash FROM pages WHERE id=?", (page_id,)).fetchone()
     if not row:
         return {"error": "Page not found"}
 
@@ -573,15 +775,15 @@ async def api_vector_rebuild() -> dict[str, Any]:
     embedded = 0
     errors = 0
     with get_conn(_db_path) as conn:
-        rows = conn.execute(
-            "SELECT namespace, page_name, title, description, laconic FROM tropes"
-        ).fetchall()
+        rows = conn.execute("SELECT namespace, page_name, title, description, laconic FROM tropes").fetchall()
     for row in rows:
         trope = dict(row)
         ok = await upsert_trope_embedding(
             _settings.resolved_data_dir(),
             trope,
             ollama_host=_settings.ollama_host,
+            model=_settings.openai_embedding_model if _settings.api_mode == "openai" else "nomic-embed-text",
+            api_mode=_settings.api_mode,
         )
         if ok:
             embedded += 1
@@ -699,6 +901,10 @@ def build_app() -> FastAPI:
     )
     app.include_router(router)
     app.mount("/mcp", mcp_http)
+
+    @app.get("/health")
+    async def health() -> dict[str, Any]:
+        return {"status": "ok", "service": "tvtropes-mcp"}
 
     @app.get("/")
     async def root() -> dict[str, Any]:

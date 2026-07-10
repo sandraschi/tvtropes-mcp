@@ -7,7 +7,7 @@ import tempfile
 
 from scraper.bootstrap import (
     NAMESPACE_INDEX_PAGES,
-    SITEMAP_URL,
+    SITEMAP_URLS,
     run_bootstrap,
 )
 from scraper.db import Config, init_db
@@ -32,8 +32,10 @@ def test_bootstrap_runs_with_empty_db() -> None:
     shutil.rmtree(tmp, ignore_errors=True)
 
 
-def test_sitemap_url_constant() -> None:
-    assert SITEMAP_URL == "https://tvtropes.org/sitemap.xml"
+def test_sitemap_urls_list() -> None:
+    assert len(SITEMAP_URLS) >= 3
+    assert SITEMAP_URLS[0] == "https://tvtropes.org/sitemap.xml"
+    assert all("tvtropes.org" in url for url in SITEMAP_URLS)
 
 
 def test_namespace_index_pages() -> None:

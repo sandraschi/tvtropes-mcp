@@ -30,12 +30,30 @@ class ScraperManager:
         with self._scheduler_lock:
             if self._scheduler and self._scheduler.is_running:
                 return {"success": False, "message": "Crawler already running"}
+
+            # Glom on to an existing standalone scraper if one is active
+            from scraper.db import has_active_crawl_session
+            if has_active_crawl_session(self.db_path):
+                return {"success": True, "message": "Glommed onto existing scraper (active crawl session found in DB)"}
+
+            # No active scraper — start our own
             self._scheduler = CrawlScheduler(self.db_path, self.config)
             self._scheduler.start()
+            # Auto-start extractor in a fire-and-forget task
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self._ensure_extractor())
+            except RuntimeError:
+                pass
             return {
                 "success": True,
                 "message": f"Crawler started (session={self._scheduler._session_id})",
             }
+
+    async def _ensure_extractor(self) -> None:
+        if not self._extractor_running:
+            await self.start_extractor()
 
     def stop_crawler(self) -> dict[str, Any]:
         with self._scheduler_lock:
@@ -44,6 +62,20 @@ class ScraperManager:
             self._scheduler.stop()
             self._scheduler = None
             return {"success": True, "message": "Crawler stopped"}
+
+    def pause_crawler(self) -> dict[str, Any]:
+        with self._scheduler_lock:
+            if not self._scheduler:
+                return {"success": False, "message": "Crawler not started"}
+            self._scheduler.pause()
+            return {"success": True, "message": "Crawler paused"}
+
+    def resume_crawler(self) -> dict[str, Any]:
+        with self._scheduler_lock:
+            if not self._scheduler:
+                return {"success": False, "message": "Crawler not started"}
+            self._scheduler.resume()
+            return {"success": True, "message": "Crawler resumed"}
 
     @property
     def crawler_running(self) -> bool:

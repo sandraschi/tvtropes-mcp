@@ -19,6 +19,9 @@ from tvtropes_mcp.db import (
     namespace_list as db_namespace_list,
 )
 from tvtropes_mcp.db import (
+    works_in_namespace as db_works_in_namespace,
+)
+from tvtropes_mcp.db import (
     related_tropes as db_related_tropes,
 )
 from tvtropes_mcp.db import (
@@ -237,6 +240,33 @@ async def namespace_list(
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
+async def works_in_namespace(
+    namespace: Annotated[str, Field(description="Namespace to list works in (e.g. 'Film', 'Series', 'Anime').")],
+    limit: Annotated[int, Field(description="Max results.", ge=1, le=200)] = 50,
+    offset: Annotated[int, Field(description="Offset for pagination.", ge=0)] = 0,
+    ctx: Context = None,
+) -> dict[str, Any]:
+    """List works in a given namespace for browsing.
+
+    Returns works that have been extracted from the mirror, ordered by name.
+    Use this to discover works to drill into with work_tropes.
+
+    ## Return Format
+    {"success": bool, "namespace": str, "works": [{"work_name": str, "namespace": str}], "total": int}
+
+    ## Examples
+    works_in_namespace(namespace="Film", limit=20)
+    works_in_namespace(namespace="Anime", offset=40)
+    """
+    try:
+        works = db_works_in_namespace(namespace, db_path=_db_path, limit=limit, offset=offset)
+        return {"success": True, "namespace": namespace, "works": works, "total": len(works)}
+    except Exception as e:
+        log.error(f"works_in_namespace failed: {e}", exc_info=True)
+        return {"success": False, "namespace": namespace, "works": [], "total": 0, "error": str(e)}
+
+
+@mcp.tool(annotations={"readOnlyHint": True})
 async def random_trope(
     ctx: Context = None,
 ) -> dict[str, Any]:
@@ -422,6 +452,8 @@ async def semantic_search(
             _settings.resolved_data_dir(),
             limit=limit,
             ollama_host=_settings.ollama_host,
+            model=_settings.openai_embedding_model if _settings.api_mode == "openai" else "nomic-embed-text",
+            api_mode=_settings.api_mode,
         )
         return {
             "success": True,

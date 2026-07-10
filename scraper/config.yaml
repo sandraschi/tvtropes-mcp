@@ -37,16 +37,30 @@ namespaces:
     - Administrivia
     - Ptitle        # redirect stubs, not real content
 
+# API mode: "ollama" (Ollama native API) or "openai" (OpenAI-compatible, e.g. LM Studio)
+api_mode: "ollama"
+
 ollama:
   url: "http://localhost:11434"
-  model: "qwen2.5:27b"
+  model: "gemma4:12b"
   timeout_s: 120
-  concurrent: 2     # max parallel Ollama calls
+  concurrent: 2     # max parallel LLM calls
+
+openai:
+  chat_model: "qwen/qwen3.6-27b"
+  embedding_model: "text-embedding-nomic-embed-text-v1.5"
+  timeout_s: 120
+  concurrent: 2
 
 storage:
   db_path: "data/tvtropes.db"
   cache_dir: "scraper/cache"
   compress: true    # gzip HTML before storing
+
+scraping_api:
+  enabled: false
+  provider: scrapieapi       # scrapieapi | scrapingbee | zenrows
+  api_key: ""
 
 server:
   mcp_port: 10964

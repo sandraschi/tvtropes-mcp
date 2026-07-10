@@ -6,13 +6,14 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 type RelationGroup = {
+  trope: string;
   sub_tropes: { namespace: string; page_name: string }[];
   super_tropes: { namespace: string; page_name: string }[];
   sister_tropes: { namespace: string; page_name: string }[];
   related_tropes: { namespace: string; page_name: string }[];
 };
 
-type RelResp = { success: boolean; trope: string } & RelationGroup;
+type RelResp = { success: boolean } & RelationGroup;
 
 type Trope = { namespace: string; page_name: string };
 
@@ -68,8 +69,11 @@ export function TropeGraph() {
     if (e.key === "Enter" && tropeId.trim()) loadTrope(tropeId.trim());
   };
 
-  const allRelations = graph
-    ? (Object.keys(REL_COLORS) as (keyof RelationGroup)[]).filter((key) => graph[key].length > 0)
+  const REL_KEYS = ["sub_tropes", "super_tropes", "sister_tropes", "related_tropes"] as const;
+  const allRelations = graph ? REL_KEYS.filter((key) => graph[key].length > 0) : [];
+
+  const relEntries = graph
+    ? (allRelations.map((key) => ({ key, items: graph[key] as { namespace: string; page_name: string }[] })))
     : [];
 
   return (
@@ -127,13 +131,13 @@ export function TropeGraph() {
           </Card>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {allRelations.map((key) => (
+            {relEntries.map(({ key, items }) => (
               <div key={key} className={`border-l-4 rounded-lg p-3 ${REL_COLORS[key]}`}>
                 <h3 className="text-sm font-medium mb-2">
-                  {REL_LABELS[key]} ({graph[key].length})
+                  {REL_LABELS[key]} ({items.length})
                 </h3>
                 <div className="flex flex-wrap gap-1.5">
-                  {graph[key].map((t: Trope) => (
+                  {items.map((t) => (
                     <button
                       key={`${t.namespace}/${t.page_name}`}
                       onClick={() => navigate(t)}

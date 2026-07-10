@@ -49,11 +49,22 @@ async def get_embedding(
     text: str,
     ollama_host: str = "http://localhost:11434",
     model: str = "nomic-embed-text",
+    api_mode: str = "ollama",
 ) -> list[float] | None:
     import httpx
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
+            if api_mode == "openai":
+                r = await client.post(
+                    f"{ollama_host}/v1/embeddings",
+                    json={"model": model, "input": text},
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    return data.get("data", [{}])[0].get("embedding")
+                log.warning(f"OpenAI embedding HTTP {r.status_code}")
+                return None
             r = await client.post(
                 f"{ollama_host}/api/embeddings",
                 json={"model": model, "prompt": text},
@@ -63,7 +74,7 @@ async def get_embedding(
             log.warning(f"Ollama embedding HTTP {r.status_code}")
             return None
     except Exception as e:
-        log.debug(f"Ollama embedding unavailable: {e}")
+        log.debug(f"Embedding unavailable: {e}")
         return None
 
 
@@ -83,11 +94,12 @@ async def upsert_trope_embedding(
     trope: dict[str, Any],
     ollama_host: str = "http://localhost:11434",
     model: str = "nomic-embed-text",
+    api_mode: str = "ollama",
 ) -> bool:
     text = _make_text(trope)
     if not text.strip():
         return False
-    embedding = await get_embedding(text, ollama_host, model)
+    embedding = await get_embedding(text, ollama_host, model, api_mode)
     if embedding is None:
         return False
     table = ensure_table(data_dir)
@@ -111,8 +123,9 @@ async def semantic_search(
     limit: int = 10,
     ollama_host: str = "http://localhost:11434",
     model: str = "nomic-embed-text",
+    api_mode: str = "ollama",
 ) -> list[dict[str, Any]]:
-    query_emb = await get_embedding(query, ollama_host, model)
+    query_emb = await get_embedding(query, ollama_host, model, api_mode)
     if query_emb is None:
         return [{"error": "Embedding unavailable — is Ollama running with nomic-embed-text?"}]
     try:

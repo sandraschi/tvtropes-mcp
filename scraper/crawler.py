@@ -23,6 +23,18 @@ except ImportError:
     HAS_CURL = False
     log.warning("curl_cffi not available — crawler will use mock mode")
 
+_SCRAPING_API_URLS = {
+    "scrapieapi": "http://api.scraperapi.com",
+    "scrapingbee": "https://app.scrapingbee.com/api/v1",
+    "zenrows": "https://api.zenrows.com/v1",
+}
+
+_SCRAPING_API_PARAMS = {
+    "scrapieapi": {"api_key": None, "url": None},
+    "scrapingbee": {"api_key": None, "url": None},
+    "zenrows": {"apikey": None, "url": None},
+}
+
 # Chrome version to impersonate. Must match a version curl_cffi supports.
 # `chrome` = latest stable. Specific version = that exact TLS fingerprint.
 CHROME_IMPERSONATE = "chrome131"  # latest stable as of 2026-05
@@ -142,6 +154,55 @@ class TvtropesCrawler:
             log.warning(f"Warmup failed: {e}")
             return False
 
+    def _fetch_via_scraping_api(self, url: str) -> dict[str, Any]:
+        """Fetch a page through a third-party scraping API to bypass Cloudflare."""
+        import httpx
+
+        result: dict[str, Any] = {
+            "success": False,
+            "html": None,
+            "status_code": None,
+            "blocked": False,
+            "error": None,
+        }
+
+        provider = self.config.scraping_api_provider
+        api_key = self.config.scraping_api_key
+        base_url = _SCRAPING_API_URLS.get(provider)
+        if not base_url or not api_key:
+            result["error"] = f"Invalid scraping API config: provider={provider}, key_set={bool(api_key)}"
+            return result
+
+        params = dict(_SCRAPING_API_PARAMS[provider])
+        for k in params:
+            if params[k] is None:
+                params[k] = api_key if k in ("api_key", "apikey") else url
+
+        try:
+            resp = httpx.get(base_url, params=params, timeout=60, follow_redirects=True)
+            result["status_code"] = resp.status_code
+            html = resp.text
+
+            if is_cloudflare_blocked(html):
+                result["blocked"] = True
+                result["error"] = "Cloudflare block page detected (scraping API returned block page)"
+                log.warning(f"Scraping API returned block page for {url}")
+                return result
+
+            if result["status_code"] != 200:
+                result["error"] = f"HTTP {result['status_code']} (scraping API)"
+                log.warning(f"Scraping API HTTP {result['status_code']} for {url}")
+                return result
+
+            result["success"] = True
+            result["html"] = html
+            return result
+
+        except Exception as e:
+            result["error"] = f"Scraping API error: {e}"
+            log.error(f"Scraping API fetch failed for {url}: {e}")
+            return result
+
     def fetch(self, url: str) -> dict[str, Any]:
         result: dict[str, Any] = {
             "success": False,
@@ -154,6 +215,10 @@ class TvtropesCrawler:
         if not self._check_daily_budget():
             result["error"] = "Daily budget exhausted"
             return result
+
+        # Route through scraping API when enabled (bypasses Cloudflare)
+        if self.config.scraping_api_enabled:
+            return self._fetch_via_scraping_api(url)
 
         # Auto-warmup on first real fetch if not already warmed up
         if not self._warmed_up and HAS_CURL:

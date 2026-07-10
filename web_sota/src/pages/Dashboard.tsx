@@ -9,16 +9,16 @@ import {
   Search,
   Square,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiGet, apiPost } from "@/api/client";
 import { PageHero } from "@/components/layout/PageHero";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
 type Health = { status: string; service: string };
 type ScraperInfo = {
   state: string;
+  paused: boolean;
   pending: number;
   crawled: number;
   extracted: number;
@@ -26,9 +26,12 @@ type ScraperInfo = {
   skipped: number;
   blocked: number;
   daily: number;
+  current_url: string;
+  pages_crawled_this_session: number;
 };
 type Status = {
   scraper: ScraperInfo;
+  extractor: { running: boolean };
   db: { size_mb: number; tropes: number; examples: number };
 };
 
@@ -70,21 +73,81 @@ export function Dashboard() {
       setHealth(h);
       setStatus(s);
       setErr(null);
+      return true;
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
+      return false;
     }
   }, []);
 
+  const retryRef = useRef(0);
   useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 10000);
-    return () => clearInterval(interval);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const intervals = [1000, 2000, 4000, 8000, 16000];
+
+    const poll = async () => {
+      const ok = await fetchStatus();
+      if (ok) {
+        retryRef.current = 0;
+        timer = setTimeout(poll, 10000);
+      } else {
+        const delay = intervals[Math.min(retryRef.current, intervals.length - 1)];
+        retryRef.current += 1;
+        timer = setTimeout(poll, delay);
+      }
+    };
+
+    poll();
+
+    // SSE for live updates (replaces polling for status refresh)
+    let es: EventSource | undefined;
+    try {
+      es = new EventSource("/api/events");
+      es.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          setStatus((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              scraper: {
+                ...prev.scraper,
+                state: data.crawler_running ? "running" : "stopped",
+                current_url: data.current_url ?? prev.scraper.current_url,
+                crawled: data.crawled ?? prev.scraper.crawled,
+                pending: data.pending ?? prev.scraper.pending,
+                extracted: data.extracted ?? prev.scraper.extracted,
+                daily: data.daily ?? prev.scraper.daily,
+              },
+              extractor: { running: data.extractor_running ?? prev.extractor?.running },
+            };
+          });
+        } catch { /* ignore parse errors */ }
+      };
+    } catch { /* SSE not available */ }
+
+    let unlisten: (() => void) | undefined;
+    (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        unlisten = await listen<string>("backend-status", (event) => {
+          if (event.payload === "ready") fetchStatus();
+          else if (typeof event.payload === "string" && event.payload.startsWith("error:")) setErr(event.payload);
+        });
+      } catch { /* not in Tauri */ }
+    })();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      if (es) es.close();
+      if (unlisten) unlisten();
+    };
   }, [fetchStatus]);
 
   const startScraper = async () => {
     setScraperMsg("Starting scraper...");
     try {
-      const r = await apiPost<{ success: boolean; message: string }>("/api/scraper/start");
+      const r = await apiPost<{ success: boolean; message: string }>("/api/scraper/start", {});
       setScraperMsg(r.message);
     } catch (e) {
       setScraperMsg(e instanceof Error ? e.message : "Failed");
@@ -95,7 +158,29 @@ export function Dashboard() {
   const stopScraper = async () => {
     setScraperMsg("Stopping scraper...");
     try {
-      const r = await apiPost<{ success: boolean; message: string }>("/api/scraper/stop");
+      const r = await apiPost<{ success: boolean; message: string }>("/api/scraper/stop", {});
+      setScraperMsg(r.message);
+    } catch (e) {
+      setScraperMsg(e instanceof Error ? e.message : "Failed");
+    }
+    setTimeout(() => setScraperMsg(null), 3000);
+  };
+
+  const pauseScraper = async () => {
+    setScraperMsg("Pausing scraper...");
+    try {
+      const r = await apiPost<{ success: boolean; message: string }>("/api/scraper/pause", {});
+      setScraperMsg(r.message);
+    } catch (e) {
+      setScraperMsg(e instanceof Error ? e.message : "Failed");
+    }
+    setTimeout(() => setScraperMsg(null), 3000);
+  };
+
+  const resumeScraper = async () => {
+    setScraperMsg("Resuming scraper...");
+    try {
+      const r = await apiPost<{ success: boolean; message: string }>("/api/scraper/resume", {});
       setScraperMsg(r.message);
     } catch (e) {
       setScraperMsg(e instanceof Error ? e.message : "Failed");
@@ -125,12 +210,11 @@ export function Dashboard() {
   const s = status?.scraper;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-testid="dashboard">
       <PageHero
         eyebrow="tvtropes-mcp"
-        title="TVTropes local mirror"
-        size="large"
-        lead="Polite background crawler, Ollama extraction, 11 FastMCP tools, React dashboard, Calibre integration."
+        title="TVTropes crawler & search"
+        lead="Background scraper that indexes tvtropes.org into a local SQLite database. Search tropes, browse by work/namespace, and navigate the trope relationship graph — no internet needed."
       />
 
       {err && (
@@ -143,18 +227,29 @@ export function Dashboard() {
       <Card>
         <CardTitle>
           <Search className="h-5 w-5 inline mr-2 text-primary" />
-          Start a crawl from a URL
+          Crawl a page to index it
         </CardTitle>
         <p className="text-sm text-muted-foreground mt-1">
-          Enter a TVTropes page path or URL to crawl it and linked pages up to the chosen depth.
+          Pick a starting point below. The polite scraper fetches the page and follows links up to the chosen depth.
         </p>
         <div className="flex flex-wrap gap-2 mt-3">
-          <Input
-            placeholder="Anime/Planetarian or full URL"
+          <select
             value={crawlUrl}
             onChange={(e) => setCrawlUrl(e.target.value)}
-            className="flex-1 min-w-[200px]"
-          />
+            className="flex-1 min-w-[200px] h-10 rounded-md border border-input bg-background/60 px-3 text-sm"
+          >
+            <option value="Anime/Planetarian">Anime/Planetarian</option>
+            <option value="Film/JamesBond">Film/JamesBond</option>
+            <option value="Anime/DetectiveConan">Anime/DetectiveConan</option>
+            <option value="Theatre/WilliamShakespeare">Theatre/WilliamShakespeare</option>
+            <option value="Main/TomatoInTheMirror">Main/TomatoInTheMirror</option>
+            <option value="Film/TheMatrix">Film/TheMatrix</option>
+            <option value="Series/BreakingBad">Series/BreakingBad</option>
+            <option value="Literature/HarryPotter">Literature/HarryPotter</option>
+            <option value="VideoGame/Portal">VideoGame/Portal</option>
+            <option value="WesternAnimation/SpongeBobSquarePants">WesternAnimation/SpongeBobSquarePants</option>
+            <option value="Music/TheBeatles">Music/TheBeatles</option>
+          </select>
           <select
             value={crawlDepth}
             onChange={(e) => setCrawlDepth(Number(e.target.value))}
@@ -233,21 +328,26 @@ export function Dashboard() {
       </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardTitle className="text-sm text-muted-foreground font-normal">API</CardTitle>
+        <Card data-testid="kpi-server">
+          <CardTitle className="text-sm text-muted-foreground font-normal">API
+            <span className="inline-block ml-2 w-2 h-2 rounded-full align-middle"
+              data-testid="backend-dot"
+              style={{ background: health ? "#22c55e" : err ? "#ef4444" : "#6b7280" }}
+            />
+          </CardTitle>
           <p className="text-2xl font-semibold mt-1">{health?.status ?? "…"}</p>
         </Card>
-        <Card>
+        <Card data-testid="kpi-tropes">
           <CardTitle className="text-sm text-muted-foreground font-normal">
             Tropes indexed
           </CardTitle>
           <p className="text-2xl font-semibold mt-1">{status?.db.tropes ?? "—"}</p>
         </Card>
-        <Card>
+        <Card data-testid="kpi-examples">
           <CardTitle className="text-sm text-muted-foreground font-normal">Examples</CardTitle>
           <p className="text-2xl font-semibold mt-1">{status?.db.examples ?? "—"}</p>
         </Card>
-        <Card>
+        <Card data-testid="kpi-dbsize">
           <CardTitle className="text-sm text-muted-foreground font-normal">DB Size</CardTitle>
           <p className="text-2xl font-semibold mt-1">
             {status ? `${status.db.size_mb.toFixed(1)} MB` : "—"}
@@ -265,49 +365,66 @@ export function Dashboard() {
           <Button size="sm" onClick={startScraper} disabled={s?.state === "running"}>
             <Play className="h-4 w-4 mr-1" /> Start
           </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={stopScraper}
-            disabled={s?.state !== "running"}
-          >
+          <Button size="sm" variant="secondary" onClick={stopScraper} disabled={s?.state !== "running"}>
             <Square className="h-4 w-4 mr-1" /> Stop
+          </Button>
+          <Button size="sm" variant="outline" onClick={pauseScraper} disabled={s?.state !== "running" || s?.paused}>
+            Pause
+          </Button>
+          <Button size="sm" variant="outline" onClick={resumeScraper} disabled={s?.state !== "running" || !s?.paused}>
+            Resume
           </Button>
         </div>
         {s && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">State</span>
-              <p className="font-medium">{s.state}</p>
+          <div className="space-y-3 mt-4 text-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div>
+                <span className="text-muted-foreground">State</span>
+                <p className="font-medium">{s.state}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Extractor</span>
+                <p className="font-medium">{status?.extractor?.running ? "running" : "idle"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Pending</span>
+                <p className="font-medium">{s.pending}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Crawled</span>
+                <p className="font-medium">{s.crawled}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Extracted</span>
+                <p className="font-medium">{s.extracted}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Failed</span>
+                <p className="font-medium">{s.failed}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Blocked</span>
+                <p className="font-medium">{s.blocked}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Skipped</span>
+                <p className="font-medium">{s.skipped}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Today</span>
+                <p className="font-medium">{s.daily}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Session</span>
+                <p className="font-medium">{s.pages_crawled_this_session ?? "—"}</p>
+              </div>
             </div>
-            <div>
-              <span className="text-muted-foreground">Pending</span>
-              <p className="font-medium">{s.pending}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Crawled</span>
-              <p className="font-medium">{s.crawled}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Extracted</span>
-              <p className="font-medium">{s.extracted}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Failed</span>
-              <p className="font-medium">{s.failed}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Blocked</span>
-              <p className="font-medium">{s.blocked}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Skipped</span>
-              <p className="font-medium">{s.skipped}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Today</span>
-              <p className="font-medium">{s.daily}</p>
-            </div>
+            {s.current_url && (
+              <div className="rounded border border-primary/20 bg-primary/5 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Currently crawling</p>
+                <p className="text-sm font-mono truncate" title={s.current_url}>{s.current_url}</p>
+              </div>
+            )}
           </div>
         )}
         {scraperMsg && <p className="text-sm text-primary mt-2">{scraperMsg}</p>}
@@ -315,7 +432,7 @@ export function Dashboard() {
 
       <div>
         <h2 className="text-lg font-semibold tracking-tight">MCP Tools</h2>
-        <p className="text-muted-foreground text-sm mt-1">11 tools registered via FastMCP 3.2.</p>
+        <p className="text-muted-foreground text-sm mt-1">12 tools registered via FastMCP 3.2.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
