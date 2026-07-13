@@ -29,7 +29,7 @@ _settings = load_settings()
 _db_path = str(_settings.resolved_data_dir() / "tvtropes.db")
 ensure_db(_db_path)
 
-mcp_http = mcp.http_app(path="/mcp")
+mcp_http = mcp.http_app(path="/")
 router = APIRouter(prefix="/api")
 
 _scraper = ScraperManager(_db_path)
