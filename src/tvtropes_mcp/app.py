@@ -521,6 +521,7 @@ async def api_llm_discover() -> dict[str, Any]:
     probes: list[tuple[str, str, str]] = [
         ("ollama", "Ollama", "http://localhost:11434/api/tags"),
         ("lmstudio", "LM Studio", "http://localhost:1234/v1/models"),
+        ("vllm", "vLLM", "http://localhost:8000/v1/models"),
     ]
     providers: list[dict[str, Any]] = []
 
@@ -827,6 +828,31 @@ async def api_vector_rebuild() -> dict[str, Any]:
     return {"success": True, "embedded": embedded, "errors": errors, "total": embedded + errors}
 
 
+@router.get("/skills")
+async def api_skills() -> dict[str, Any]:
+    """List available skills."""
+    from pathlib import Path
+
+    skills_dir = Path(__file__).resolve().parent / "skills"
+    skills = []
+    if skills_dir.is_dir():
+        for child in skills_dir.iterdir():
+            if child.is_dir() and (child / "SKILL.md").exists():
+                skills.append({"name": child.name, "uri": f"skill://{child.name}/SKILL.md"})
+    return {"skills": skills, "count": len(skills)}
+
+
+@router.get("/skills/{skill_name}")
+async def api_skill_content(skill_name: str) -> dict[str, Any]:
+    """Return the raw SKILL.md content for a given skill."""
+    from pathlib import Path
+
+    skill_file = Path(__file__).resolve().parent / "skills" / skill_name / "SKILL.md"
+    if skill_file.exists():
+        return {"name": skill_name, "content": skill_file.read_text(encoding="utf-8")}
+    return {"name": skill_name, "content": "", "error": "Skill not found"}
+
+
 @router.get("/tools")
 async def api_tools() -> dict[str, Any]:
     return {
@@ -843,6 +869,7 @@ async def api_tools() -> dict[str, Any]:
             "calibre_search",
             "calibre_status",
             "semantic_search",
+            "web_search",
         ],
         "mcp_http_path": "/mcp",
         "prompts": [
