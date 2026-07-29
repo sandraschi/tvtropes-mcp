@@ -35,6 +35,13 @@ router = APIRouter(prefix="/api")
 _scraper = ScraperManager(_db_path)
 _start_time = time.time()
 
+# Auto-start crawler on service boot so the mirror is always being populated.
+_res = _scraper.start_crawler()
+if _res.get("success"):
+    log.info("Crawler auto-started: %s", _res.get("message"))
+else:
+    log.info("Crawler auto-start: %s", _res.get("message"))
+
 
 @router.get("/health")
 async def health() -> dict[str, Any]:
@@ -704,7 +711,7 @@ async def api_pages(
     with get_conn(_db_path) as conn:
         total = conn.execute(
             f"SELECT COUNT(*) FROM pages WHERE {where}",
-            params,  # noqa: S608
+            params,
         ).fetchone()[0]
         cols = "id, url, namespace, page_name, status, crawled_at, http_status, blocked, retry_count"
         rows = conn.execute(
