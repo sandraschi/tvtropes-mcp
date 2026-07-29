@@ -20,3 +20,6 @@ web_sota/dist/
 .env
 *.env.local
 _dashboard/
+
+# Reports (regenerable snapshots)
+reports/
