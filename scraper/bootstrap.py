@@ -1,13 +1,15 @@
-"""Bootstrap seed URL queue from sitemap.xml and namespace index pages."""
+"""Bootstrap seed URL queue from sitemap.xml, pagelist API, and namespace index pages."""
 
 from __future__ import annotations
 
 import logging
 from typing import Any
 
+from bs4 import BeautifulSoup
+
 from scraper.crawler import TvtropesCrawler
 from scraper.db import Config, count_pending, queue_urls
-from scraper.parser import TVTROPES_BASE, extract_page_links, is_cloudflare_blocked, parse_sitemap
+from scraper.parser import TVTROPES_BASE, classify_url, extract_page_links, is_cloudflare_blocked, parse_sitemap
 
 log = logging.getLogger(__name__)
 
@@ -16,6 +18,32 @@ SITEMAP_URLS = [
     f"{TVTROPES_BASE}/sitemap.xml",
     f"{TVTROPES_BASE}/sitemap_index.xml",
     f"{TVTROPES_BASE}/page-sitemap.xml",
+]
+
+# TVTropes pagelist API: enumerates all pages of a given type in a namespace.
+# t=trope for tropes, t=work for media works. Supports &offset=N for pagination.
+PAGELIST_ENDPOINT = f"{TVTROPES_BASE}/pmwiki/pagelist_having_pagetype_in_namespace.php"
+PAGELIST_NAMESPACES: list[tuple[str, str]] = [
+    ("Main", "trope"),
+    ("Film", "work"),
+    ("Series", "work"),
+    ("Anime", "work"),
+    ("Literature", "work"),
+    ("VideoGame", "work"),
+    ("WesternAnimation", "work"),
+    ("Music", "work"),
+    ("ComicBook", "work"),
+    ("Webcomic", "work"),
+    ("WebOriginal", "work"),
+    ("Theatre", "work"),
+    ("VisualNovel", "work"),
+    ("Manga", "work"),
+    ("LightNovel", "work"),
+    ("Podcast", "work"),
+    ("Roleplay", "work"),
+    ("TabletopGame", "work"),
+    ("Franchise", "work"),
+    ("Creator", "work"),
 ]
 
 NAMESPACE_INDEX_PAGES = [
@@ -124,10 +152,57 @@ def seed_from_sitemap(db_path: str, crawler: TvtropesCrawler) -> int:
     except Exception as exc:
         log.info("Main page link parsing failed: %s", exc)
 
-    log.error(
-        "All sitemap strategies failed — tvtropes.org may be unreachable or fully blocked"
-    )
+    log.error("All sitemap strategies failed — tvtropes.org may be unreachable or fully blocked")
     return 0
+
+
+def seed_from_pagelist(db_path: str, crawler: TvtropesCrawler) -> int:
+    """Seed URL queue from TVTropes pagelist enumeration API.
+
+    This is the canonical way to discover every page in a namespace.
+    Falls back to BeautifulSoup link parsing when the API returns HTML.
+    Paginates through all available entries.
+    """
+    total_added = 0
+    PAGE_SIZE = 200
+
+    for ns, ptype in PAGELIST_NAMESPACES:
+        offset = 0
+        consecutive_empty = 0
+        while offset < 20000:  # safety cap
+            url = f"{PAGELIST_ENDPOINT}?n={ns}&t={ptype}&limit={PAGE_SIZE}&offset={offset}"
+            result = crawler.fetch(url)
+            if not result["success"]:
+                log.warning("Pagelist fetch failed for %s (offset %d): %s", ns, offset, result.get("error"))
+                break
+
+            soup = BeautifulSoup(result["html"], "lxml")
+            links = []
+            for a in soup.find_all("a", href=True):
+                href: str = a["href"]
+                full = f"{TVTROPES_BASE}{href}" if href.startswith("/") else href
+                classified = classify_url(full)
+                if classified:
+                    link_ns, name = classified
+                    links.append({"url": full, "namespace": link_ns, "page_name": name})
+
+            if not links:
+                consecutive_empty += 1
+                if consecutive_empty >= 3:
+                    break
+                offset += PAGE_SIZE
+                continue
+
+            consecutive_empty = 0
+            entries = [ln for ln in links if ln.get("namespace") and ln.get("page_name")]
+            if entries:
+                added = queue_urls(db_path, entries)
+                total_added += added
+                if added:
+                    log.info("Pagelist %s (type=%s) offset %d: queued %d URLs", ns, ptype, offset, added)
+            offset += PAGE_SIZE
+
+    return total_added
 
 
 def seed_from_namespace_indexes(db_path: str, crawler: TvtropesCrawler) -> int:
@@ -162,12 +237,14 @@ def run_bootstrap(
     try:
         existing = count_pending(db_path)
         sitemap_added = seed_from_sitemap(db_path, crawler)
+        pagelist_added = seed_from_pagelist(db_path, crawler)
         index_added = seed_from_namespace_indexes(db_path, crawler)
         total = count_pending(db_path)
         return {
             "success": True,
             "existing_before": existing,
             "sitemap_added": sitemap_added,
+            "pagelist_added": pagelist_added,
             "index_added": index_added,
             "total_pending": total,
         }
