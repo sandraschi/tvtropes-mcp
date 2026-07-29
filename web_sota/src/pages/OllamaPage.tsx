@@ -201,7 +201,7 @@ export function OllamaPage() {
               placeholder="http://localhost:11434"
               data-testid="endpoint-input"
             />
-            <p className="text-[10px] text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Auto-detected from provider. Override for custom endpoints.
             </p>
           </div>
@@ -239,12 +239,12 @@ export function OllamaPage() {
                 placeholder={selectedProvider === "lmstudio" ? "qwen/qwen3.6-27b" : "qwen2.5:27b"}
                 data-testid="model-input"
               />
-              <p className="text-[10px] text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 {providerOnline ? "Models could not be fetched." : "Provider offline — enter model name manually."}
               </p>
             </>
           )}
-          <p className="text-[10px] text-muted-foreground mt-2">
+          <p className="text-xs text-muted-foreground mt-2">
             Used for both extraction (Qwen 2.5 recommended) and semantic embeddings
             (nomic-embed-text).
           </p>

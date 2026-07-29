@@ -129,7 +129,7 @@ export function ChatPage() {
           <button onClick={() => setEndpoint("ollama")} className={`text-xs px-3 py-1 rounded-full border transition-colors ${endpoint === "ollama" ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"}`}>
             <Brain className="h-3 w-3 inline mr-1" /> Ollama {ollamaOk === true ? "\u2713" : ollamaOk === false ? "\u2717" : "\u2026"}
           </button>
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono bg-muted/50 px-2 py-0.5 rounded ml-auto">skill:trope-expert</span>
+          <span className="text-xs uppercase tracking-wider text-muted-foreground font-mono bg-muted/50 px-2 py-0.5 rounded ml-auto">skill:trope-expert</span>
           <select data-testid="personality-select" value={personality} onChange={(e) => setPersonality(e.target.value)} className="bg-muted text-xs text-foreground border border-border rounded px-2 py-1">
             {PERSONALITIES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
@@ -142,7 +142,7 @@ export function ChatPage() {
 
       <div data-testid="example-prompts" className="flex flex-wrap gap-1.5">
         {EXAMPLE_PROMPTS.map((p) => (
-          <button key={p} onClick={() => setInput(p)} className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
+          <button key={p} onClick={() => setInput(p)} className="flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
             <Sparkles className="w-2.5 h-2.5" />{p}
           </button>
         ))}
@@ -154,7 +154,7 @@ export function ChatPage() {
             <Card className={cn("max-w-[80%] p-3", m.role === "user" ? "bg-primary/10" : "bg-card/60")}>
               <div className="flex items-center gap-2 mb-1">
                 {m.role === "assistant" ? <Brain className="h-3.5 w-3.5 text-primary" /> : <User className="h-3.5 w-3.5 text-muted-foreground" />}
-                <span className="text-[10px] text-muted-foreground uppercase">{m.role}</span>
+                <span className="text-xs text-muted-foreground uppercase">{m.role}</span>
               </div>
               <pre className="text-sm whitespace-pre-wrap font-sans text-foreground/90">{m.text}</pre>
             </Card>

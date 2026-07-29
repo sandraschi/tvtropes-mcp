@@ -146,14 +146,14 @@ export function TropeSearch() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <CardTitle className="text-sm">{r.name}</CardTitle>
-                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                      <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                         {r.namespace}
                       </span>
                     </div>
                     {r.snippet && (
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.snippet}</p>
                     )}
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Score: {r.score.toFixed(4)} · {r.id}
                     </p>
                   </div>
@@ -179,7 +179,7 @@ export function TropeSearch() {
                 <p className="text-sm text-muted-foreground italic mt-2">"{selected.laconic}"</p>
               )}
               {selected.description && <p className="text-sm mt-2">{selected.description}</p>}
-              <p className="text-[10px] text-muted-foreground mt-2">{selected.id}</p>
+              <p className="text-xs text-muted-foreground mt-2">{selected.id}</p>
             </Card>
 
             {selected.sub_tropes.length > 0 && (

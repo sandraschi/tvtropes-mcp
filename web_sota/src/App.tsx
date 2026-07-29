@@ -10,8 +10,11 @@ import {
 import { AppLayout } from "@/components/layout/AppLayout";
 import { LoggerProvider } from "@/context/LoggerContext";
 import { useZoom } from "@/lib/use-zoom";
+import { BritProcedurals } from "@/pages/BritProcedurals";
 import { ChatPage } from "@/pages/ChatPage";
+import { CurrentSeason } from "@/pages/CurrentSeason";
 import { Dashboard } from "@/pages/Dashboard";
+import { DetectiveConan } from "@/pages/DetectiveConan";
 import { HelpPage } from "@/pages/HelpPage";
 import { LogPage } from "@/pages/LogPage";
 import { OllamaPage } from "@/pages/OllamaPage";
@@ -49,6 +52,9 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="search" element={<TropeSearch />} />
             <Route path="works" element={<WorkBrowser />} />
+            <Route path="conan" element={<DetectiveConan />} />
+            <Route path="britprocedurals" element={<BritProcedurals />} />
+            <Route path="season" element={<CurrentSeason />} />
             <Route path="graph" element={<TropeGraph />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="ollama" element={<OllamaPage />} />

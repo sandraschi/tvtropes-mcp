@@ -12,7 +12,10 @@ import {
   List,
   Menu,
   MessageSquare,
+  Search,
   Settings,
+  Shield,
+  Tv,
 } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
@@ -25,6 +28,9 @@ const nav = [
   { to: "/search", label: "Trope Search", icon: Lightbulb },
   { to: "/works", label: "Work Browser", icon: Library },
   { to: "/graph", label: "Trope Graph", icon: Layers },
+  { to: "/conan", label: "Detective Conan", icon: Search },
+  { to: "/britprocedurals", label: "Brit Procedurals", icon: Shield },
+  { to: "/season", label: "In the Mirror", icon: Tv },
   { to: "/chat", label: "Chat", icon: MessageSquare },
   { to: "/ollama", label: "Ollama", icon: Brain },
   { to: "/pages", label: "Pages", icon: FileText },
@@ -51,7 +57,7 @@ export function AppLayout() {
           {open && (
             <div className="flex-1">
               <div className="font-bold leading-tight">tvtropes-mcp</div>
-              <div className="text-[10px] text-muted-foreground">Vite · 10965</div>
+              <div className="text-xs text-muted-foreground">Vite · 10965</div>
             </div>
           )}
           <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setOpen(!open)}>
