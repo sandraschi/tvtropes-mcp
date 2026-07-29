@@ -1,4 +1,4 @@
-import { ArrowRight, Brain, Gauge, Globe, HardDrive, Loader2, Save, Shield } from "lucide-react";
+import { ArrowRight, Brain, Gauge, Globe, HardDrive, Loader2, RotateCcw, Save, Shield } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiGet, apiPost } from "@/api/client";
@@ -251,6 +251,36 @@ export function SettingsPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </Card>
+
+          <Card>
+            <CardTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-primary" />
+              Service
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              The backend runs as an NSSM Windows service. Restarting stops the current process
+              and spawns a fresh one — useful after config changes or if the crawler gets stuck.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-red-500/40 text-red-400 hover:bg-red-500/10"
+                onClick={async () => {
+                  try {
+                    const r = await apiPost<{ success: boolean; message: string }>("/api/restart", {});
+                    setMsg(r.message ?? "Service restarting...");
+                    setTimeout(() => { setMsg("Backend stopped — NSSM should restart it within a few seconds"); }, 2000);
+                  } catch (e) {
+                    setMsg(e instanceof Error ? e.message : "Restart failed");
+                  }
+                }}
+              >
+                <RotateCcw className="h-4 w-4 mr-1" />
+                Restart Backend
+              </Button>
             </div>
           </Card>
         </>

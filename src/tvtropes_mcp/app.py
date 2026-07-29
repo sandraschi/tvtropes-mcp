@@ -145,6 +145,34 @@ async def api_shutdown() -> dict[str, Any]:
     return {"success": True, "message": "Shutting down"}
 
 
+@router.post("/restart")
+async def api_restart() -> dict[str, Any]:
+    """Restart the NSSM service in the background.
+
+    Spawns a fire-and-forget thread that waits 1s (so the HTTP response
+    is sent), then tells NSSM to restart the service. The backend process
+    dies and NSSM starts a fresh one.
+    """
+    import threading
+
+    def _do_restart():
+        import subprocess
+        import time
+
+        time.sleep(1)
+        try:
+            subprocess.run(
+                ["nssm", "restart", "tvtropes-mcp"],
+                capture_output=True, timeout=30,
+            )
+        except Exception as exc:
+            log.error("Restart failed: %s", exc)
+
+    threading.Thread(target=_do_restart, daemon=True).start()
+    _scraper.stop_crawler()
+    return {"success": True, "message": "Restarting NSSM service..."}
+
+
 @router.post("/scraper/start")
 async def api_scraper_start() -> dict[str, Any]:
     return _scraper.start_crawler()
