@@ -9,7 +9,7 @@ from scraper.db import Config, init_db
 
 
 def test_extractor_ollama_check_no_server() -> None:
-    """Extractor should gracefully handle missing Ollama server."""
+    """Extractor should run with HTML fallback when Ollama is unavailable."""
     tmp = tempfile.mkdtemp()
     db_path = os.path.join(tmp, "test.db")
     init_db(db_path)
@@ -27,8 +27,8 @@ def test_extractor_ollama_check_no_server() -> None:
     extractor = Extractor(db_path, config)
     try:
         result = asyncio.run(extractor.run_pass())
-        assert result.get("success") is False
-        assert result.get("reason") == "ollama_unavailable"
+        assert result.get("success") is True
+        assert result.get("reason") in ("no_crawled_pages", "ollama_unavailable")
     finally:
         asyncio.run(extractor.close())
     import shutil

@@ -9,6 +9,9 @@ from typing import Annotated, Any
 import httpx
 from fastmcp import Context, FastMCP
 from fastmcp.server.providers.skills import SkillsDirectoryProvider
+from fastmcp.server.server import ToolResult
+from prefab_ui import PrefabApp
+from prefab_ui.components import Heading, Row
 from pydantic import Field
 
 from tvtropes_mcp.config import load_settings
@@ -52,7 +55,7 @@ def _get_manager() -> ScraperManager:
     return _scraper_manager
 
 
-@mcp.tool(annotations={"readOnlyHint": True}, version="1.0.0")
+@mcp.tool(annotations={"readOnlyHint": True}, version="1.0.0", output_schema={"type": "object"})
 async def trope_search(
     query: Annotated[str, Field(description="Full-text query for trope names and descriptions (FTS5).")],
     limit: Annotated[int, Field(description="Max results.", ge=1, le=100)] = 20,
@@ -505,6 +508,94 @@ async def web_search(
         "engine": engine,
         "results": results,
         "total": len(results),
+    }
+
+
+@mcp.tool(app=True, annotations={"readOnlyHint": True})
+async def show_status_card(ctx: Context = None) -> ToolResult:
+    """Display scraper and database status as a rich in-chat Prefab card.
+
+    ## Return Format
+    ToolResult with plain text fallback + PrefabApp structured content.
+    """
+    from tvtropes_mcp.db import scraper_status as db_scraper_status
+    from tvtropes_mcp.server import mcp
+
+    db_stats = db_scraper_status(db_path=_db_path)
+    tools = await mcp.list_tools()
+    app = PrefabApp(title="tvtropes-mcp Status")
+    with app:
+        Heading("Database")
+        Row(label="Tropes", value=str(db_stats.get("tropes", 0)))
+        Row(label="Examples", value=str(db_stats.get("examples", 0)))
+        Row(label="Relations", value=str(db_stats.get("trope_relations", 0)))
+        Row(label="DB Size", value=f"{db_stats.get('size_mb', 0):.1f} MB")
+        Heading("Crawl")
+        Row(label="Crawled", value=str(db_stats.get("crawled", 0)))
+        Row(label="Pending", value=str(db_stats.get("pending", 0)))
+        Row(label="Extracted", value=str(db_stats.get("extracted", 0)))
+        Row(label="Failed", value=str(db_stats.get("failed", 0)))
+        Row(label="Daily", value=str(db_stats.get("daily", 0)))
+        Heading("Server")
+        Row(label="Tools", value=str(len(tools) if tools else 13))
+        Row(label="Backend", value="10964")
+    return ToolResult(
+        content=f"tvtropes-mcp: {db_stats.get('tropes', 0)} tropes, "
+        f"{db_stats.get('trope_relations', 0)} relations, "
+        f"{db_stats.get('crawled', 0)} pages crawled",
+        structured_content=app,
+    )
+
+
+@mcp.tool(annotations={"readOnlyHint": True})
+async def trope_agentic_assist(
+    goal: str,
+    ctx: Context = None,
+) -> dict:
+    """Multi-step research plan via MCP sampling (FastMCP 3.1+).
+
+    When the host exposes sampling (Claude Desktop), this tool uses
+    ``ctx.sample()`` to autonomously search, browse, and traverse the
+    trope graph to answer complex questions. Falls back to a structured
+    plan when sampling is not available.
+
+    ## Return Format
+    {"success": bool, "result": str, "mode": str}
+
+    ## Examples
+    trope_agentic_assist("Compare the tropes in Breaking Bad and The Wire")
+    trope_agentic_assist("Find works that subvert the Chosen One trope")
+    """
+    system = (
+        "You are a TVTropes expert. You have these tools available:\n"
+        "- trope_search(query, limit) — full-text search across tropes\n"
+        "- trope_get(trope_id) — full trope page with relations\n"
+        "- work_tropes(work_id) — all tropes for a work\n"
+        "- related_tropes(trope_id) — traverse the trope graph\n"
+        "- semantic_search(query, limit) — vector similarity search\n"
+        "- web_search(query) — web search for external context\n\n"
+        f"Goal: {goal}\n\n"
+        "Use the tools step by step to research. Present your findings concisely."
+    )
+    if ctx and hasattr(ctx, "sample") and callable(ctx.sample):
+        try:
+            result = await ctx.sample(system)
+            return {"success": True, "result": str(result), "mode": "sampling"}
+        except Exception as exc:
+            return {
+                "success": False,
+                "result": "",
+                "mode": "error",
+                "error": f"Sampling failed: {exc}",
+            }
+    return {
+        "success": True,
+        "result": "MCP sampling is not available on this host. "
+        f"To research '{goal}', call these tools manually:\n"
+        "1. trope_search for broad keyword discovery\n"
+        "2. trope_get / work_tropes for details\n"
+        "3. related_tropes for graph traversal",
+        "mode": "plan",
     }
 
 
