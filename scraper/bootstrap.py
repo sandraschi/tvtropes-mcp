@@ -159,24 +159,39 @@ def seed_from_sitemap(db_path: str, crawler: TvtropesCrawler) -> int:
 def seed_from_pagelist(db_path: str, crawler: TvtropesCrawler) -> int:
     """Seed URL queue from TVTropes pagelist enumeration API.
 
-    This is the canonical way to discover every page in a namespace.
-    Falls back to BeautifulSoup link parsing when the API returns HTML.
-    Paginates through all available entries.
+    Uses raw httpx (not the polite crawler) because pagelist pages are
+    lightweight index pages that don't need Chrome TLS impersonation nor
+    8-15s politeness delays. Runs at network speed.
     """
+    import httpx
+
     total_added = 0
     PAGE_SIZE = 200
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/131.0.0.0 Safari/537.36"
+        ),
+    }
 
     for ns, ptype in PAGELIST_NAMESPACES:
         offset = 0
         consecutive_empty = 0
-        while offset < 20000:  # safety cap
+        while offset < 20000:
             url = f"{PAGELIST_ENDPOINT}?n={ns}&t={ptype}&limit={PAGE_SIZE}&offset={offset}"
-            result = crawler.fetch(url)
-            if not result["success"]:
-                log.warning("Pagelist fetch failed for %s (offset %d): %s", ns, offset, result.get("error"))
-                break
+            try:
+                resp = httpx.get(url, headers=headers, timeout=15, follow_redirects=True)
+                resp.raise_for_status()
+                html = resp.text
+            except Exception as exc:
+                log.warning("Pagelist fetch failed for %s (offset %d): %s", ns, offset, exc)
+                if offset == 0:
+                    break  # first page failed — skip namespace
+                offset += PAGE_SIZE
+                continue
 
-            soup = BeautifulSoup(result["html"], "lxml")
+            soup = BeautifulSoup(html, "lxml")
             links = []
             for a in soup.find_all("a", href=True):
                 href: str = a["href"]
@@ -198,8 +213,7 @@ def seed_from_pagelist(db_path: str, crawler: TvtropesCrawler) -> int:
             if entries:
                 added = queue_urls(db_path, entries)
                 total_added += added
-                if added:
-                    log.info("Pagelist %s (type=%s) offset %d: queued %d URLs", ns, ptype, offset, added)
+                log.info("Pagelist %s (type=%s) offset %d: queued %d URLs", ns, ptype, offset, added)
             offset += PAGE_SIZE
 
     return total_added
