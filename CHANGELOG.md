@@ -1,4 +1,13 @@
 
+## [Unreleased] — 2026-07-29
+
+### Added
+- `web_search` tool (13th) — search the web via OpenSERP for trope context outside the mirror (google/bing/duckduckgo/yandex/baidu/ecosia)
+- OpenSERP config (`TVTROPES_MCP_OPENSERP_URL`, default `http://127.0.0.1:7000`)
+
+### Changed
+- Consolidated sprawling `from tvtropes_mcp.db import` block to single-line imports
+
 ## [Unreleased] — 2026-06-14
 
 ### Added

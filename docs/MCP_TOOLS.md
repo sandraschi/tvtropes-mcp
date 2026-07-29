@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-All 12 tools are registered via `@mcp.tool` in [`src/tvtropes_mcp/server.py`](../src/tvtropes_mcp/server.py) and query the local SQLite mirror. Every tool is annotated `readOnlyHint` — the mirror is never modified.
+13 tools are registered via `@mcp.tool` in [`src/tvtropes_mcp/server.py`](../src/tvtropes_mcp/server.py). Twelve query the local SQLite mirror; `web_search` queries the web via OpenSERP. Every tool is annotated `readOnlyHint`.
 
 ## Tool List
 
@@ -18,6 +18,7 @@ All 12 tools are registered via `@mcp.tool` in [`src/tvtropes_mcp/server.py`](..
 | `trope_lookup_by_title` | `title` | Cross-reference book title against Literature/ |
 | `calibre_search` | `title?`, `author?`, `limit` | Search local Calibre library |
 | `calibre_status` | — | Check Calibre library detection |
+| `web_search` | `query`, `engine?`, `limit?` | Search the web for trope context via OpenSERP (requires local openserp on :7000) |
 
 ## CLI Usage
 

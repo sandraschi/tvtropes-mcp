@@ -50,6 +50,7 @@
 | `trope_lookup_by_title` | Cross-reference book title against Literature/ namespace |
 | `calibre_search` | Search local Calibre library by title or author |
 | `calibre_status` | Check if a Calibre library is detected |
+| `web_search` | Web search via OpenSERP for trope context outside the mirror |
 
 ## CLI
 

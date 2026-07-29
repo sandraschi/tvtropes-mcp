@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     scraper_delay_min: float = 8.0
     scraper_delay_max: float = 15.0
     scraper_daily_budget: int = 7000
+    openserp_url: str = "http://127.0.0.1:7000"
 
     def resolved_data_dir(self) -> Path:
         base = self.data_dir

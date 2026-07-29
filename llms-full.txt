@@ -11,7 +11,7 @@
 - **Dashboard REST:** `GET /api/health`, `POST /api/mcp/tool`, `POST /api/scraper/crawl`, `GET /api/pages`, `GET /api/lookup/title`, `GET /api/bridge`. Vite dev proxies `/api` and `/mcp` to **10964**.
 - **Changelog:** `CHANGELOG.md`.
 
-## Tool surface (12 tools)
+## Tool surface (13 tools)
 
 All tools are `readOnlyHint` — the mirror is never modified by queries. Response format is `dict` with `success: bool`.
 
@@ -29,6 +29,7 @@ All tools are `readOnlyHint` — the mirror is never modified by queries. Respon
 | `trope_lookup_by_title` | `title` | Book title → Literature/ namespace cross-ref |
 | `calibre_search` | `title?`, `author?`, `limit` | Search local Calibre library |
 | `calibre_status` | — | Detect Calibre library |
+| `web_search` | `query`, `engine?`, `limit?` | Search the web via OpenSERP for trope context outside the mirror |
 
 ## REST API endpoints
 

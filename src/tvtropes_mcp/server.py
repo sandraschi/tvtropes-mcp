@@ -6,39 +6,21 @@ import logging
 from pathlib import Path
 from typing import Annotated, Any
 
+import httpx
 from fastmcp import Context, FastMCP
 from fastmcp.server.providers.skills import SkillsDirectoryProvider
 from pydantic import Field
 
 from tvtropes_mcp.config import load_settings
-from tvtropes_mcp.db import (
-    ensure_db,
-    random_trope_get,
-)
-from tvtropes_mcp.db import (
-    namespace_list as db_namespace_list,
-)
-from tvtropes_mcp.db import (
-    works_in_namespace as db_works_in_namespace,
-)
-from tvtropes_mcp.db import (
-    related_tropes as db_related_tropes,
-)
-from tvtropes_mcp.db import (
-    scraper_status as db_scraper_status,
-)
-from tvtropes_mcp.db import (
-    trope_examples as db_trope_examples,
-)
-from tvtropes_mcp.db import (
-    trope_get as db_trope_get,
-)
-from tvtropes_mcp.db import (
-    trope_search as db_trope_search,
-)
-from tvtropes_mcp.db import (
-    work_tropes as db_work_tropes,
-)
+from tvtropes_mcp.db import ensure_db, random_trope_get
+from tvtropes_mcp.db import namespace_list as db_namespace_list
+from tvtropes_mcp.db import related_tropes as db_related_tropes
+from tvtropes_mcp.db import scraper_status as db_scraper_status
+from tvtropes_mcp.db import trope_examples as db_trope_examples
+from tvtropes_mcp.db import trope_get as db_trope_get
+from tvtropes_mcp.db import trope_search as db_trope_search
+from tvtropes_mcp.db import work_tropes as db_work_tropes
+from tvtropes_mcp.db import works_in_namespace as db_works_in_namespace
 from tvtropes_mcp.scraper_manager import ScraperManager
 
 log = logging.getLogger(__name__)
@@ -417,6 +399,7 @@ async def calibre_status(
     """
     try:
         from tvtropes_mcp.calibre_ops import calibre_status as _calibre_status
+
         result = _calibre_status()
         return {"success": True, **result}
     except Exception as e:
@@ -466,7 +449,67 @@ async def semantic_search(
         return {"success": False, "query": query, "results": [], "total": 0, "error": str(e)}
 
 
+@mcp.tool(annotations={"readOnlyHint": True})
+async def web_search(
+    query: Annotated[str, Field(description="Search query for the web.")],
+    engine: Annotated[str, Field(description="Search engine to use.")] = "google",
+    limit: Annotated[int, Field(description="Max results.", ge=1, le=20)] = 5,
+    ctx: Context = None,
+) -> dict[str, Any]:
+    """Search the web via the local OpenSERP server for trope context not in the mirror yet.
+
+    Requires a running OpenSERP instance on localhost:7000
+    (`npx -y @openserp/mcp` or the standalone binary).
+    Engines: google, bing, duckduckgo, yandex, baidu, ecosia.
+
+    ## Return Format
+    {"success": bool, "query": str, "engine": str,
+     "results": [{"title": str, "url": str, "snippet": str}], "total": int}
+
+    ## Examples
+    web_search("Chekhov's Gun examples in modern film")
+    web_search("trope: Batman as Byronic hero", engine="duckduckgo")
+    """
+    base = _settings.openserp_url
+    url = f"{base}/{engine}/search"
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(url, params={"text": query, "limit": limit})
+            r.raise_for_status()
+            data = r.json()
+    except httpx.ConnectError:
+        return {
+            "success": False,
+            "query": query,
+            "engine": engine,
+            "results": [],
+            "total": 0,
+            "error": "OpenSERP not reachable — start it with `npx -y @openserp/mcp` or `openserp serve`",
+        }
+    except Exception as e:
+        log.error(f"web_search failed: {e}", exc_info=True)
+        return {"success": False, "query": query, "engine": engine, "results": [], "total": 0, "error": str(e)}
+
+    results = []
+    for r_item in data.get("results", []):
+        results.append(
+            {
+                "title": r_item.get("title", ""),
+                "url": r_item.get("url", ""),
+                "snippet": r_item.get("snippet", ""),
+            }
+        )
+    return {
+        "success": True,
+        "query": query,
+        "engine": engine,
+        "results": results,
+        "total": len(results),
+    }
+
+
 # ─── Prompts ────────────────────────────────────────────────────────
+
 
 @mcp.prompt
 async def trope_analysis_prompt(work_id: str) -> str:
