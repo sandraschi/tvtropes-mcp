@@ -23,3 +23,7 @@ _dashboard/
 
 # Reports (regenerable snapshots)
 reports/
+
+# Runtime logs (services write here - untracked)
+*.log
+logs/
