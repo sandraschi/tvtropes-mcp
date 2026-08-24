@@ -1,4 +1,4 @@
-"""Calibre library integration — discover books and cross-reference with TVTropes."""
+"""Calibre library integration - discover books and cross-reference with TVTropes."""
 
 from __future__ import annotations
 

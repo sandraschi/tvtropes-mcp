@@ -33,10 +33,11 @@ class ScraperManager:
 
             # Glom on to an existing standalone scraper if one is active
             from scraper.db import has_active_crawl_session
+
             if has_active_crawl_session(self.db_path):
                 return {"success": True, "message": "Glommed onto existing scraper (active crawl session found in DB)"}
 
-            # No active scraper — start our own
+            # No active scraper - start our own
             self._scheduler = CrawlScheduler(self.db_path, self.config)
             self._scheduler.start()
             # Auto-start extractor in a fire-and-forget task

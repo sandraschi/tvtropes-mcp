@@ -1,4 +1,4 @@
-"""Read-only query layer for MCP tools — re-exports from scraper.db with MCP-friendly formatting."""
+"""Read-only query layer for MCP tools - re-exports from scraper.db with MCP-friendly formatting."""
 
 from __future__ import annotations
 

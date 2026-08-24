@@ -65,16 +65,25 @@ def main() -> None:
     HTTP_PROXY_URL = os.getenv("TVTROPES_MCP_API_URL", "http://127.0.0.1:10964/mcp")
     try:
         import httpx
-        r = httpx.post(HTTP_PROXY_URL, json={
-            "jsonrpc": "2.0", "id": 1, "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-11-25",
-                "capabilities": {},
-                "clientInfo": {"name": "probe", "version": "1"}
-            }
-        }, headers={"Accept": "application/json, text/event-stream"}, timeout=0.5)
+
+        r = httpx.post(
+            HTTP_PROXY_URL,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-11-25",
+                    "capabilities": {},
+                    "clientInfo": {"name": "probe", "version": "1"},
+                },
+            },
+            headers={"Accept": "application/json, text/event-stream"},
+            timeout=0.5,
+        )
         if r.status_code == 200:
             from fastmcp.server import create_proxy
+
             proxy = create_proxy(HTTP_PROXY_URL, name="tvtropes-mcp")
             proxy.run(transport="stdio")
             return
@@ -118,10 +127,13 @@ def _run_scraper(*, debug: bool) -> None:
             time.sleep(60)
             stats = get_crawl_stats(db_path)
             log.info(
-                "Crawl: %d extracted, %d crawled, %d pending, %d failed, "
-                "%d blocked, %d today",
-                stats["extracted"], stats["crawled"], stats["pending"],
-                stats["failed"], stats["blocked"], stats["daily"],
+                "Crawl: %d extracted, %d crawled, %d pending, %d failed, %d blocked, %d today",
+                stats["extracted"],
+                stats["crawled"],
+                stats["pending"],
+                stats["failed"],
+                stats["blocked"],
+                stats["daily"],
             )
             _extract_interval += 1
             if _extract_interval >= 5 and stats.get("crawled", 0) > 0:

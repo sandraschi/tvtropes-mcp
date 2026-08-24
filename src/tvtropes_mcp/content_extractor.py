@@ -16,11 +16,24 @@ def extract_main_content(html: str) -> str:
 
     # Remove unwanted sections
     for selector in [
-        "nav", "footer", "header", "aside",
-        "script", "style", "noscript",
-        "#sidebar", "#nav", "#footer", "#header",
-        ".footer", ".nav", ".sidebar", ".header",
-        ".advertisement", ".ad", ".ads",
+        "nav",
+        "footer",
+        "header",
+        "aside",
+        "script",
+        "style",
+        "noscript",
+        "#sidebar",
+        "#nav",
+        "#footer",
+        "#header",
+        ".footer",
+        ".nav",
+        ".sidebar",
+        ".header",
+        ".advertisement",
+        ".ad",
+        ".ads",
         ".folder",  # trope example sections
         ".grouptitle",
         ".platform",  # platform metadata

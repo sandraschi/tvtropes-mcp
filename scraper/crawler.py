@@ -67,27 +67,29 @@ class TvtropesCrawler:
     def _apply_headers(self):
         if self._session is None:
             return
-        self._session.headers.update({
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/131.0.0.0 Safari/537.36"
-            ),
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "de-AT,de;q=0.9,en;q=0.8,ja;q=0.7",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Cache-Control": "max-age=0",
-            "DNT": "1",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "none",
-            "Sec-Fetch-User": "?1",
-            "Sec-CH-UA": '"Google Chrome";v="131", "Chromium";v="131", "Not?A_Brand";v="24"',
-            "Sec-CH-UA-Mobile": "?0",
-            "Sec-CH-UA-Platform": '"Windows"',
-        })
+        self._session.headers.update(
+            {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/131.0.0.0 Safari/537.36"
+                ),
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "de-AT,de;q=0.9,en;q=0.8,ja;q=0.7",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Cache-Control": "max-age=0",
+                "DNT": "1",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Sec-CH-UA": '"Google Chrome";v="131", "Chromium";v="131", "Not?A_Brand";v="24"',
+                "Sec-CH-UA-Mobile": "?0",
+                "Sec-CH-UA-Platform": '"Windows"',
+            }
+        )
 
     def _respect_delay(self):
         elapsed = time.time() - self._last_fetch_time
@@ -129,10 +131,12 @@ class TvtropesCrawler:
 
         try:
             # First request: no referer, Sec-Fetch-Site: none (direct navigation)
-            self._session.headers.update({
-                "Referer": TVTROPES_BASE,
-                "Sec-Fetch-Site": "none",
-            })
+            self._session.headers.update(
+                {
+                    "Referer": TVTROPES_BASE,
+                    "Sec-Fetch-Site": "none",
+                }
+            )
             resp = self._session.get(TVTROPES_BASE, timeout=30)
             if is_cloudflare_blocked(resp.text):
                 log.warning("Warmup blocked by Cloudflare — TVTropes may be behind enhanced protection")
@@ -143,10 +147,12 @@ class TvtropesCrawler:
                 self._warmed_up = True
                 self._last_fetch_time = time.time()
                 # Switch to same-origin for subsequent requests
-                self._session.headers.update({
-                    "Referer": TVTROPES_BASE,
-                    "Sec-Fetch-Site": "same-origin",
-                })
+                self._session.headers.update(
+                    {
+                        "Referer": TVTROPES_BASE,
+                        "Sec-Fetch-Site": "same-origin",
+                    }
+                )
                 return True
             log.warning(f"Warmup returned HTTP {resp.status_code}")
             return False
@@ -203,6 +209,26 @@ class TvtropesCrawler:
             log.error(f"Scraping API fetch failed for {url}: {e}")
             return result
 
+    def _fetch_via_obscura(self, url: str) -> dict[str, Any] | None:
+        """Fetch page via Obscura engine with stealth V8 JS execution when Cloudflare blocks standard fetch."""
+        try:
+            import sys
+            from pathlib import Path
+
+            obscura_mcp_path = Path("D:/Dev/repos/obscura-mcp/src")
+            if obscura_mcp_path.exists() and str(obscura_mcp_path) not in sys.path:
+                sys.path.insert(0, str(obscura_mcp_path))
+
+            from obscura_mcp.server import fetch_with_obscura
+
+            html = fetch_with_obscura(url, dump="html", stealth=True, timeout=35)
+            if html and not is_cloudflare_blocked(html):
+                log.info(f"Obscura stealth fetch succeeded for {url}")
+                return {"success": True, "html": html, "status_code": 200, "blocked": False, "error": None}
+        except Exception as e:
+            log.warning(f"Obscura fetch fallback failed for {url}: {e}")
+        return None
+
     def fetch(self, url: str) -> dict[str, Any]:
         result: dict[str, Any] = {
             "success": False,
@@ -224,6 +250,10 @@ class TvtropesCrawler:
         if not self._warmed_up and HAS_CURL:
             warmed = self.warmup()
             if not warmed:
+                # Try Obscura stealth fallback before giving up on warmup block
+                obs_res = self._fetch_via_obscura(url)
+                if obs_res:
+                    return obs_res
                 result["blocked"] = True
                 result["error"] = "Cloudflare block page detected during session warmup"
                 result["note"] = "Session warmup failed. Retrying with backoff."
@@ -243,10 +273,15 @@ class TvtropesCrawler:
                 html = f"<html><body><p>Mock page for {url}</p></body></html>"
                 result["status_code"] = 200
 
-            if is_cloudflare_blocked(html):
+            if is_cloudflare_blocked(html) or result["status_code"] in (403, 429):
+                log.warning(
+                    f"Blocked or rate-limited ({result['status_code']}): {url} — attempting Obscura stealth fallback"
+                )
+                obs_res = self._fetch_via_obscura(url)
+                if obs_res:
+                    return obs_res
                 result["blocked"] = True
                 result["error"] = "Cloudflare block page detected"
-                log.warning(f"Blocked by Cloudflare: {url}")
                 return result
 
             if result["status_code"] != 200:

@@ -64,6 +64,7 @@ def install_log_ring(data_dir: str | Path | None = None) -> None:
 
     if data_dir is None:
         from tvtropes_mcp.config import load_settings
+
         data_dir = load_settings().resolved_data_dir()
 
     log_dir = Path(data_dir) / "logs"
@@ -75,19 +76,23 @@ def install_log_ring(data_dir: str | Path | None = None) -> None:
         backupCount=5,
         encoding="utf-8",
     )
-    file_handler.setFormatter(logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    ))
+    file_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
     root.addHandler(file_handler)
 
-    # ERROR-only stderr handler — INFO/DEBUG stay out of the console
+    # ERROR-only stderr handler - INFO/DEBUG stay out of the console
     err_handler = logging.StreamHandler(sys.stderr)
     err_handler.setLevel(logging.ERROR)
-    err_handler.setFormatter(logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    ))
+    err_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
     root.addHandler(err_handler)
 
 

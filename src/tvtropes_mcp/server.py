@@ -90,7 +90,7 @@ async def trope_get(
     trope_id: str,
     ctx: Context = None,
 ) -> dict[str, Any]:
-    """Get a full trope page — description, examples, and related tropes.
+    """Get a full trope page - description, examples, and related tropes.
 
     ## Return Format
     {"success": bool,
@@ -174,7 +174,7 @@ async def related_tropes(
     trope_id: str,
     ctx: Context = None,
 ) -> dict[str, Any]:
-    """Traverse trope relationships — SubTrope, SuperTrope, SisterTrope, Related.
+    """Traverse trope relationships - SubTrope, SuperTrope, SisterTrope, Related.
 
     ## Return Format
     {"success": bool, "trope": str,
@@ -269,7 +269,7 @@ async def random_trope(
     try:
         result = random_trope_get(db_path=_db_path)
         if result is None:
-            return {"success": False, "trope": None, "message": "No tropes in database yet — run the scraper first"}
+            return {"success": False, "trope": None, "message": "No tropes in database yet - run the scraper first"}
         return {"success": True, "trope": result}
     except Exception as e:
         log.error(f"random_trope failed: {e}", exc_info=True)
@@ -487,7 +487,7 @@ async def web_search(
             "engine": engine,
             "results": [],
             "total": 0,
-            "error": "OpenSERP not reachable — start it with `npx -y @openserp/mcp` or `openserp serve`",
+            "error": "OpenSERP not reachable - start it with `npx -y @openserp/mcp` or `openserp serve`",
         }
     except Exception as e:
         log.error(f"web_search failed: {e}", exc_info=True)
@@ -568,12 +568,12 @@ async def trope_agentic_assist(
     """
     system = (
         "You are a TVTropes expert. You have these tools available:\n"
-        "- trope_search(query, limit) — full-text search across tropes\n"
-        "- trope_get(trope_id) — full trope page with relations\n"
-        "- work_tropes(work_id) — all tropes for a work\n"
-        "- related_tropes(trope_id) — traverse the trope graph\n"
-        "- semantic_search(query, limit) — vector similarity search\n"
-        "- web_search(query) — web search for external context\n\n"
+        "- trope_search(query, limit) - full-text search across tropes\n"
+        "- trope_get(trope_id) - full trope page with relations\n"
+        "- work_tropes(work_id) - all tropes for a work\n"
+        "- related_tropes(trope_id) - traverse the trope graph\n"
+        "- semantic_search(query, limit) - vector similarity search\n"
+        "- web_search(query) - web search for external context\n\n"
         f"Goal: {goal}\n\n"
         "Use the tools step by step to research. Present your findings concisely."
     )
@@ -645,7 +645,7 @@ async def creative_writing_prompt(genre: str = "fantasy", tone: str = "dark") ->
         f"3. Propose a story premise that combines all 3 tropes\n"
         f"4. Suggest character archetypes that fit these tropes\n"
         f"5. Outline a 3-act structure showing where each trope appears\n\n"
-        f"Be creative — the best stories come from unexpected trope combinations."
+        f"Be creative - the best stories come from unexpected trope combinations."
     )
 
 

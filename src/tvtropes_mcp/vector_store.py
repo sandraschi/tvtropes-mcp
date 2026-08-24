@@ -31,15 +31,17 @@ def ensure_table(data_dir: str | Path) -> lancedb.table.Table:
         log.info(f"Opened existing LanceDB table '{DEFAULT_TABLE_NAME}'")
         return table
     except Exception:
-        schema = pa.schema([
-            pa.field("id", pa.string()),
-            pa.field("namespace", pa.string()),
-            pa.field("page_name", pa.string()),
-            pa.field("title", pa.string()),
-            pa.field("description", pa.string()),
-            pa.field("text", pa.string()),
-            pa.field("vector", pa.list_(pa.float32(), EMBEDDING_DIM)),
-        ])
+        schema = pa.schema(
+            [
+                pa.field("id", pa.string()),
+                pa.field("namespace", pa.string()),
+                pa.field("page_name", pa.string()),
+                pa.field("title", pa.string()),
+                pa.field("description", pa.string()),
+                pa.field("text", pa.string()),
+                pa.field("vector", pa.list_(pa.float32(), EMBEDDING_DIM)),
+            ]
+        )
         table = db.create_table(DEFAULT_TABLE_NAME, schema=schema, mode="create")
         log.info(f"Created LanceDB table '{DEFAULT_TABLE_NAME}'")
         return table
@@ -127,14 +129,10 @@ async def semantic_search(
 ) -> list[dict[str, Any]]:
     query_emb = await get_embedding(query, ollama_host, model, api_mode)
     if query_emb is None:
-        return [{"error": "Embedding unavailable — is Ollama running with nomic-embed-text?"}]
+        return [{"error": "Embedding unavailable - is Ollama running with nomic-embed-text?"}]
     try:
         table = open_db(data_dir).open_table(DEFAULT_TABLE_NAME)
-        results = (
-            table.search(query_emb)
-            .limit(limit)
-            .to_list()
-        )
+        results = table.search(query_emb).limit(limit).to_list()
         return [
             {
                 "id": r["id"],

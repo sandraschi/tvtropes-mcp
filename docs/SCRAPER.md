@@ -43,9 +43,9 @@ Every request passes Cloudflare block detection that inspects the **response bod
 
 ## Cloudflare Handling
 
-TVTropes uses Cloudflare free tier. The crawler uses `curl_cffi` with Chrome 131 TLS impersonation — Python's native TLS stack (`requests`/`httpx`) is detected as a bot before any HTTP headers are exchanged. This is the same JA3/JA4 fingerprint a real Chrome user presents.
+TVTropes uses Cloudflare free tier. The crawler primarily uses `curl_cffi` with Chrome TLS impersonation (`chrome131`).
 
-**What we do NOT do:** execute JavaScript challenges, solve CAPTCHAs, rotate residential proxies, or access authenticated content. If TVTropes deploys stronger protection, we index less content.
+When Cloudflare anti-bot challenges or HTTP `403`/`429` status codes are encountered (`is_cloudflare_blocked(html)`), the crawler automatically falls back to **Obscura** (`obscura fetch <url> --stealth`). Obscura provides a real V8 engine (`deno_core`) with Chrome 145 TLS fingerprinting to solve JS challenges cleanly without full Chromium overhead.
 
 See [ETHICS_AND_LEGAL.md](ETHICS_AND_LEGAL.md) for the full legal and ethical discussion.
 

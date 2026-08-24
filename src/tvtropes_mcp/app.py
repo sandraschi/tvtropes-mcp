@@ -106,7 +106,7 @@ async def api_status() -> dict[str, Any]:
 
 @router.get("/events")
 async def api_events(request: Request):
-    """SSE endpoint — streams crawl/extraction events for live dashboard updates."""
+    """SSE endpoint - streams crawl/extraction events for live dashboard updates."""
     from fastapi.responses import StreamingResponse
 
     async def event_stream():
@@ -118,18 +118,20 @@ async def api_events(request: Request):
             crawler = mgr.get("crawler", {})
             crawl = crawler.get("crawl", {})
             url = crawler.get("current_url", "")
-            status_line = f"{crawler.get('running')}|{crawl.get('crawled',0)}|{crawl.get('pending',0)}|{crawl.get('extracted',0)}|{url}"
+            status_line = f"{crawler.get('running')}|{crawl.get('crawled', 0)}|{crawl.get('pending', 0)}|{crawl.get('extracted', 0)}|{url}"
             if status_line != last_status:
                 last_status = status_line
-                data = _json.dumps({
-                    "crawler_running": crawler.get("running"),
-                    "extractor_running": mgr.get("extractor", {}).get("running"),
-                    "current_url": url,
-                    "crawled": crawl.get("crawled", 0),
-                    "pending": crawl.get("pending", 0),
-                    "extracted": crawl.get("extracted", 0),
-                    "daily": crawl.get("daily", 0),
-                })
+                data = _json.dumps(
+                    {
+                        "crawler_running": crawler.get("running"),
+                        "extractor_running": mgr.get("extractor", {}).get("running"),
+                        "current_url": url,
+                        "crawled": crawl.get("crawled", 0),
+                        "pending": crawl.get("pending", 0),
+                        "extracted": crawl.get("extracted", 0),
+                        "daily": crawl.get("daily", 0),
+                    }
+                )
                 yield f"data: {data}\n\n"
             await asyncio.sleep(3)
 
@@ -141,6 +143,7 @@ async def api_shutdown() -> dict[str, Any]:
     """Gracefully stop the scraper and shut down the server."""
     _scraper.stop_crawler()
     import asyncio
+
     asyncio.get_event_loop().stop()
     return {"success": True, "message": "Shutting down"}
 
@@ -163,7 +166,8 @@ async def api_restart() -> dict[str, Any]:
         try:
             subprocess.run(
                 ["nssm", "restart", "tvtropes-mcp"],
-                capture_output=True, timeout=30,
+                capture_output=True,
+                timeout=30,
             )
         except Exception as exc:
             log.error("Restart failed: %s", exc)
@@ -536,25 +540,37 @@ async def api_llm_discover() -> dict[str, Any]:
                         models = [m["name"] for m in data.get("models", [])]
                     else:
                         models = [m["id"] for m in data.get("data", [])]
-                    providers.append({
+                    providers.append(
+                        {
+                            "id": pid,
+                            "label": label,
+                            "base_url": base_url,
+                            "models": models,
+                            "online": True,
+                        }
+                    )
+                else:
+                    providers.append(
+                        {
+                            "id": pid,
+                            "label": label,
+                            "base_url": url.rsplit("/", 1)[0],
+                            "models": [],
+                            "online": False,
+                            "error": f"HTTP {resp.status_code}",
+                        }
+                    )
+            except Exception as exc:
+                providers.append(
+                    {
                         "id": pid,
                         "label": label,
-                        "base_url": base_url,
-                        "models": models,
-                        "online": True,
-                    })
-                else:
-                    providers.append({
-                        "id": pid, "label": label, "base_url": url.rsplit("/", 1)[0],
-                        "models": [], "online": False,
-                        "error": f"HTTP {resp.status_code}",
-                    })
-            except Exception as exc:
-                providers.append({
-                    "id": pid, "label": label, "base_url": "",
-                    "models": [], "online": False,
-                    "error": str(exc),
-                })
+                        "base_url": "",
+                        "models": [],
+                        "online": False,
+                        "error": str(exc),
+                    }
+                )
 
     return {
         "providers": providers,
@@ -567,7 +583,7 @@ async def api_llm_discover() -> dict[str, Any]:
 
 @router.get("/bridge")
 async def api_bridge() -> dict[str, Any]:
-    """Fleet bridge metadata — tells other MCP webapps how to deep-link here.
+    """Fleet bridge metadata - tells other MCP webapps how to deep-link here.
 
     Other servers (plex-mcp, calibre-mcp) use this to build one-click links.
     Follows the Cross-MCP Handoff Convention from WEBAPP_PORTS.md.
@@ -744,7 +760,7 @@ async def api_pages(
         ).fetchone()[0]
         cols = "id, url, namespace, page_name, status, crawled_at, http_status, blocked, retry_count"
         rows = conn.execute(
-            f"SELECT {cols} FROM pages WHERE {where} ORDER BY id DESC LIMIT ? OFFSET ?",  # noqa: S608
+            f"SELECT {cols} FROM pages WHERE {where} ORDER BY id DESC LIMIT ? OFFSET ?",
             [*params, limit, offset],
         ).fetchall()
         return {

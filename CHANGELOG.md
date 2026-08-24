@@ -1,27 +1,16 @@
+# Changelog
 
-## [Unreleased] — 2026-07-29
+All notable changes to tvtropes-mcp are documented here.
+
+## [Unreleased] — 2026-08-24
 
 ### Added
+- **Obscura Stealth Rendering Fallback**: `TvtropesCrawler` now automatically invokes the Obscura Rust engine (`obscura fetch --stealth`) with V8 JS execution and Chrome 145 TLS fingerprinting when Cloudflare challenges or 403/429 status codes are encountered.
 - `web_search` tool (13th) — search the web via OpenSERP for trope context outside the mirror (google/bing/duckduckgo/yandex/baidu/ecosia)
 - OpenSERP config (`TVTROPES_MCP_OPENSERP_URL`, default `http://127.0.0.1:7000`)
 
 ### Changed
 - Consolidated sprawling `from tvtropes_mcp.db import` block to single-line imports
-
-## [Unreleased] — 2026-06-14
-
-### Added
-- Tauri native wrapper (native/ directory) with bundle.resources + std::process::Command
-- CUA-NSIS: just cua-nsis-test recipe, scripts/cua-smoke.py, scripts/cua-nsis-config.json
-- Tauri CORS: tauri://localhost origins for WebView API access
-- NSIS installer at dist/ and native/target/release/bundle/nsis/
-
-### Changed
-- Frontend API calls use absolute http://127.0.0.1:{port} URLs in production build
-- CORS middleware includes allow_origin_regex for tauri.localhost
-# Changelog
-
-All notable changes to tvtropes-mcp are documented here.
 
 ## 0.2.0 — 2026-05-18
 
@@ -75,4 +64,3 @@ All notable changes to tvtropes-mcp are documented here.
 
 ### Status
 - Scaffold only — implementation deferred pending robofang work
-

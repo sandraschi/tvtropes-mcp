@@ -1,4 +1,4 @@
-"""Persistent user settings — stored in data/settings.json, overrides env vars."""
+"""Persistent user settings - stored in data/settings.json, overrides env vars."""
 
 from __future__ import annotations
 
@@ -79,10 +79,20 @@ def get_all() -> dict[str, Any]:
 def update(overrides: dict[str, Any]) -> dict[str, Any]:
     """Update specific settings keys and persist."""
     current = _read()
-    allowed = {"ollama_host", "ollama_model", "ollama_timeout",
-               "api_mode", "openai_chat_model", "openai_embedding_model",
-               "scraper_delay_min", "scraper_delay_max", "scraper_daily_budget",
-               "scraping_api_enabled", "scraping_api_provider", "scraping_api_key"}
+    allowed = {
+        "ollama_host",
+        "ollama_model",
+        "ollama_timeout",
+        "api_mode",
+        "openai_chat_model",
+        "openai_embedding_model",
+        "scraper_delay_min",
+        "scraper_delay_max",
+        "scraper_daily_budget",
+        "scraping_api_enabled",
+        "scraping_api_provider",
+        "scraping_api_key",
+    }
     changed = []
     for key in allowed:
         if key in overrides and overrides[key] is not None:
