@@ -1,3 +1,4 @@
+set windows-shell := ["powershell.exe", "-NoProfile", "-Command"]
 import 'scripts/just/fleet.just'
 
 default_shell := "powershell.exe"
@@ -30,19 +31,19 @@ test-all:
 
 # Biome lint frontend
 web-lint:
-    cd web_sota && npx biome lint src/
+    cd web_sota; npx biome lint src/
 
 # Biome auto-fix frontend
 web-fmt:
-    cd web_sota && npx biome check --write src/
+    cd web_sota; npx biome check --write src/
 
 # Biome CI check frontend
 web-ci:
-    cd web_sota && npx biome ci src/
+    cd web_sota; npx biome ci src/
 
 # Build frontend
 web-build:
-    cd web_sota && npm run build
+    cd web_sota; npm run build
 
 # Full CI pipeline (matches .github/workflows/ci.yml)
 ci: lint format-check test web-ci web-build
@@ -64,11 +65,11 @@ scrape:
 
 # Start React dashboard on :10965
 web:
-    cd web_sota && npm run dev
+    cd web_sota; npm run dev
 
 # Start full stack (backend + frontend via web_sota/start.ps1)
 dev:
-    cd web_sota && .\start.ps1
+    cd web_sota; .\start.ps1
 
 # ── Install ────────────────────────────────────────────────────────
 
@@ -84,7 +85,7 @@ sync:
 
 # Install frontend deps only
 sync-web:
-    cd web_sota && npm install
+    cd web_sota; npm install
 
 # ── Repo-specific ──────────────────────────────────────────────────
 
@@ -118,12 +119,7 @@ mcp name="scraper_status" args="{}":
 install-mcp client="print":
     .\install-mcp.ps1 {{client}}
 
-# Pack MCPB bundle (creates dist/tvtropes-mcp-v{version}.mcpb)
-mcpb-pack:
-    $ver = (Get-Content pyproject.toml | Select-String '^version = "(.*)"' | ForEach-Object { $$_.Matches.Groups[1].Value }); \
-    $null = New-Item -ItemType Directory -Path dist -Force; \
-    Compress-Archive -Path manifest.json, llms.txt, llms-full.txt, glama.json, src, scraper, docs, pyproject.toml, uv.lock -DestinationPath "dist/tvtropes-mcp-v$ver.mcpb" -CompressionLevel Optimal -Force; \
-    Write-Host "Created dist/tvtropes-mcp-v$ver.mcpb" -ForegroundColor Green
+# MCPB bundle via fleet.just (`just mcpb-pack` → mcpb/pack.ps1: fresh-stage src, validate, pack)
 
 # Create a SQLite backup snapshot
 backup:
@@ -148,6 +144,4 @@ build-native:
     $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
     pwsh -NoProfile -File '{{justfile_directory()}}\native\build.ps1'
 
-# Run the CUA smoke test against the installed NSIS app
-cua-nsis-test:
-    uv run python scripts/cua-smoke.py
+# CUA smoke test via fleet.just (`just cua-nsis-test` runs scripts/cua-smoke.py)

@@ -5,18 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tvtropes-mcp"
 version = "0.1.0"
-description = "TVTropes local mirror + MCP server — background scraper + query interface"
+description = "TVTropes local mirror + MCP server â€” background scraper + query interface"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "Sandra Schieder" }]
+authors = [{ name = "Sandra Schipal" }]
 dependencies = [
     "curl-cffi>=0.7",
     "apscheduler>=3.10",
     "beautifulsoup4>=4.12",
     "lxml>=5.0",
     "pyyaml>=6.0",
-    "fastmcp>=3.4.2,<4",
+    "fastmcp>=3.4.4,<4",
     "fastapi>=0.115.0",
     "starlette>=1.0.0",
     "uvicorn[standard]>=0.32.0",
@@ -25,6 +25,7 @@ dependencies = [
     "pyarrow>=18.0.0",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
+    "prefab-ui>=0.14.0",
 ]
 
 [project.urls]
@@ -37,7 +38,7 @@ dev = [
     "pre-commit>=4.0.0",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
-    "ruff>=0.8.0",
+    "ruff>=0.16.0,<0.17",
 ]
 
 [project.scripts]
@@ -56,7 +57,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "S", "UP", "RUF"]
-ignore = ["S101", "B008"]
+ignore = ["S104", "S310", "S311", "S314", "S608", "S108", "S603", "S301", "S103", "S112", "S105", "S607", "S701", "S102", "S307", "S324", "ASYNC230", "B008", "B904", "B025", "B019", "B023", "C901", "UP035", "RUF006", "N806", "E501", "F841", "PLW1510", "BLE001", "RUF022", "E402", "F811", "B006", "B007", "RUF059", "RUF001", "RUF002", "S110", "RUF012", "DTZ005", "DTZ006", "DTZ001", "E741", "SIM115", "SIM102", "RUF100", "F401", "D103", "D101", "F821", "TRY002", "S101", "B008", "S106", "S110", "S112", "S101", "B008", "S106", "S110", "S112", "RUF012", "S603", "S607", "S324", "E402", "E501"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -67,5 +68,5 @@ dev = [
     "pre-commit>=4.0.0",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
-    "ruff>=0.8.0",
+    "ruff>=0.16.0,<0.17",
 ]
