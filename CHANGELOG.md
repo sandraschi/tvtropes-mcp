@@ -12,6 +12,9 @@ All notable changes to tvtropes-mcp are documented here.
 ### Changed
 - Consolidated sprawling `from tvtropes_mcp.db import` block to single-line imports
 
+### Fixed
+- **`fleet-start.config.ps1` `Backend.Kind` was `'uvicorn'`, backend is NSSM**, and the file itself had never been committed to git at all (existed on disk, not gitignored, just an oversight -- confirmed via `git log` on the path). This backend runs as a persistent NSSM Windows service (service name `tvtropes-mcp`, matches `Name`), but the uncommitted config routed launches through the generic port-conflict path instead of `Start-FleetNssmWebapp`. Without `Kind='nssm'`, a perfectly healthy NSSM-held port got reported as blocked and the launcher exited 1 -- an instacrash on plain double-click even though the service was fine. Same bug found and fixed across `discord-mcp`, `email-mcp`, `pywinauto-mcp` the same day.
+
 ## 0.2.0 — 2026-05-18
 
 ### Added
