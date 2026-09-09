@@ -23,7 +23,7 @@ just serve       # start the server
 just web         # start the frontend (if applicable)
 ```
 
-> **Why not `pip install`?** MCP servers bundle webapps, configs, project scaffolding, and tooling that a flat Python package can't deliver. PyPI offers no safety advantage — it doesn't audit packages either. `just` gives you the complete, ready-to-run stack.
+> **Why not `pip install`?** MCP servers bundle webapps, configs, project scaffolding, and tooling that a flat Python package can't deliver. PyPI offers no safety advantage - it doesn't audit packages either. `just` gives you the complete, ready-to-run stack.
 
 ---
 
@@ -58,7 +58,7 @@ If you prefer not to use `just`:
 | Issue | Fix |
 |---|---|
 | `just` not found | Install via `winget install Casey.Just`, `scoop install just`, or `brew install just` |
-| Port conflict | Run `just kill-all` to clear fleet ports (10700–11000) |
+| Port conflict | Run `just kill-all` to clear fleet ports (10700-11000) |
 | Dependencies out of sync | `uv sync --all-extras` |
 | Something else | [Open a GitHub issue](https://github.com/sandraschi/tvtropes-mcp/issues) |
 
@@ -172,9 +172,9 @@ Once the server is running, settings can be changed from the **Settings** page i
 
 ```powershell
 uv run python -m tvtropes_mcp --serve
-# ÔåÆ http://127.0.0.1:10964
-# ÔåÆ MCP SSE at http://127.0.0.1:10964/mcp
-# ÔåÆ REST at http://127.0.0.1:10964/api
+# -> http://127.0.0.1:10964
+# -> MCP SSE at http://127.0.0.1:10964/mcp
+# -> REST at http://127.0.0.1:10964/api
 ```
 
 ### Dashboard (separate terminal)
@@ -182,7 +182,7 @@ uv run python -m tvtropes_mcp --serve
 ```powershell
 cd web_sota
 npm run dev
-# ÔåÆ http://127.0.0.1:10965
+# -> http://127.0.0.1:10965
 ```
 
 ### Single command (both backend + dashboard)
@@ -200,7 +200,7 @@ just dev
 ```powershell
 # Health check
 curl http://127.0.0.1:10964/api/health
-# ÔåÆ {"status":"ok","service":"tvtropes-mcp"}
+# -> {"status":"ok","service":"tvtropes-mcp"}
 
 # List MCP tools
 curl http://127.0.0.1:10964/api/tools
@@ -232,7 +232,7 @@ Add to `claude_desktop_config.json`:
 
 ### Cursor
 
-In Cursor settings ÔåÆ MCP Servers ÔåÆ Add:
+In Cursor settings -> MCP Servers -> Add:
 
 ```
 Name: tvtropes-mcp
@@ -246,7 +246,7 @@ Command: uv run --project C:\path\to\tvtropes-mcp python -m tvtropes_mcp --stdio
 
 | Symptom | Likely cause |
 |---------|-------------|
-| `Connection refused` on :10964 | Backend not started ÔÇö run `just serve` |
+| `Connection refused` on :10964 | Backend not started - run `just serve` |
 | Dashboard shows "API not reachable" | Backend not running, or wrong port |
 | Crawl returns 0 URLs | Page may not exist on TVTropes (check namespace) |
 | Cloudflare block | Session warmup should handle this; if persistent, Cloudflare may have escalated protection |
