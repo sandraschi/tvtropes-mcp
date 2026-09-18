@@ -140,8 +140,6 @@ clean:
 
 # Build Tauri native desktop app (full pipeline: frontend + backend)
 build-native:
-    Set-Location '{{justfile_directory()}}\native'
-    $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
-    pwsh -NoProfile -File '{{justfile_directory()}}\native\build.ps1'
+    Set-Location '{{justfile_directory()}}\native'; $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"; pwsh -NoProfile -File '{{justfile_directory()}}\native\build.ps1'
 
 # CUA smoke test via fleet.just (`just cua-nsis-test` runs scripts/cua-smoke.py)
