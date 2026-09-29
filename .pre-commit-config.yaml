@@ -12,7 +12,7 @@ repos:
       - id: mypy
         additional_dependencies: [pydantic-settings]
         args: [--ignore-missing-imports]
-        pass_filenames: false
+        exclude: ^scripts/
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
