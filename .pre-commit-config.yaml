@@ -10,7 +10,7 @@ repos:
     rev: v1.12.0
     hooks:
       - id: mypy
-        additional_dependencies: [pydantic-settings]
+        additional_dependencies: [pydantic-settings, types-PyYAML]
         args: [--ignore-missing-imports]
         exclude: ^scripts/
 

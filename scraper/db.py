@@ -99,6 +99,14 @@ CREATE INDEX IF NOT EXISTS idx_work_tropes_work ON work_tropes(work_ns, work_nam
 CREATE INDEX IF NOT EXISTS idx_work_tropes_trope ON work_tropes(trope_ns, trope_name);
 """
 
+# Relative storage paths resolve against the repo root, never the CWD: Claude
+# Desktop spawns stdio servers with cwd=C:\Windows\System32 (BUG-063).
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _repo_path(value: str) -> str:
+    return value if Path(value).is_absolute() else str(_REPO_ROOT / value)
+
 
 @dataclass
 class Config:
@@ -144,9 +152,13 @@ class Config:
     scraping_api_provider: str = "scrapieapi"  # scrapieapi | scrapingbee | zenrows
     scraping_api_key: str = ""
 
+    def __post_init__(self) -> None:
+        self.cache_dir = _repo_path(self.cache_dir)
+        self.db_path = _repo_path(self.db_path)
+
 
 def load_config(config_path: str | Path = "scraper/config.yaml") -> Config:
-    path = Path(config_path)
+    path = Path(_repo_path(str(config_path)))
     if not path.exists():
         return Config()
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -658,9 +670,7 @@ def get_recent_crawl_sessions(db_path: str | Path, limit: int = 10) -> list[dict
 def has_active_crawl_session(db_path: str | Path) -> bool:
     """True if a crawl session is running (no ended_at)."""
     with get_conn(db_path) as conn:
-        row = conn.execute(
-            "SELECT 1 FROM crawl_log WHERE ended_at IS NULL LIMIT 1"
-        ).fetchone()
+        row = conn.execute("SELECT 1 FROM crawl_log WHERE ended_at IS NULL LIMIT 1").fetchone()
         return row is not None
 
 

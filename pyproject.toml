@@ -45,7 +45,10 @@ dev = [
 tvtropes-mcp = "tvtropes_mcp.__main__:main"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+# scraper/ lives at the repo root; packaging it means it imports from any CWD
+# (it used to resolve only when the CWD was the repo root - BUG-063).
+where = ["src", "."]
+include = ["tvtropes_mcp*", "scraper*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

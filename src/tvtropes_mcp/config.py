@@ -4,11 +4,15 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Relative paths resolve against the repo root, never the CWD: Claude Desktop
+# spawns stdio servers with cwd=C:\Windows\System32 (BUG-063).
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="TVTROPES_MCP_",
-        env_file=".env",
+        env_file=str(_REPO_ROOT / ".env"),
         extra="ignore",
     )
 
@@ -29,7 +33,9 @@ class Settings(BaseSettings):
     def resolved_data_dir(self) -> Path:
         base = self.data_dir
         if base is None:
-            base = Path.cwd() / "data"
+            base = _REPO_ROOT / "data"
+        elif not base.is_absolute():
+            base = _REPO_ROOT / base
         base.mkdir(parents=True, exist_ok=True)
         return base
 
