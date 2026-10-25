@@ -11,7 +11,7 @@
 - **Dashboard REST:** `GET /api/health`, `POST /api/mcp/tool`, `POST /api/scraper/crawl`, `GET /api/pages`, `GET /api/lookup/title`, `GET /api/bridge`. Vite dev proxies `/api` and `/mcp` to **10964**.
 - **Changelog:** `CHANGELOG.md`.
 
-## Tool surface (13 tools)
+## Tool surface (17 tools)
 
 All tools are `readOnlyHint` — the mirror is never modified by queries. Response format is `dict` with `success: bool`.
 
@@ -30,6 +30,10 @@ All tools are `readOnlyHint` — the mirror is never modified by queries. Respon
 | `calibre_search` | `title?`, `author?`, `limit` | Search local Calibre library |
 | `calibre_status` | — | Detect Calibre library |
 | `web_search` | `query`, `engine?`, `limit?` | Search the web via OpenSERP for trope context outside the mirror |
+| `works_in_namespace` | `namespace`, `limit`, `offset` | Browse works by medium |
+| `show_status_card` | — | Prefab scraper/database status card |
+| `trope_agentic_assist` | `goal` | Multi-step research plan via MCP sampling |
+| `vector_status` | — | LanceDB vector count plus rebuild job states |
 
 ## REST API endpoints
 
@@ -58,7 +62,12 @@ All tools are `readOnlyHint` — the mirror is never modified by queries. Respon
 | POST | `/api/ollama/test` | Test host+model combo |
 | GET | `/api/log` | Recent log entries |
 | GET | `/api/vector/count` | LanceDB vector count |
-| POST | `/api/vector/rebuild` | Rebuild vector index |
+| POST | `/api/vector/rebuild` | Queue vector rebuild job (returns job_id) |
+| GET | `/api/vector/rebuild/status` | Poll rebuild job (job_id or all jobs) |
+| GET | `/api/capabilities` | Fleet capability shape (tools, transports, health) |
+| GET | `/api/llm/providers` | LLM provider registry |
+| GET | `/api/llm/models` | Model list, optional provider filter |
+| GET | `/api/llm/onboarding` | LLM onboarding state + steps |
 
 ## Crawler design
 

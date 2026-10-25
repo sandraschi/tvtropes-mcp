@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-13 tools are registered via `@mcp.tool` in [`src/tvtropes_mcp/server.py`](../src/tvtropes_mcp/server.py). Twelve query the local SQLite mirror; `web_search` queries the web via OpenSERP. Every tool is annotated `readOnlyHint`.
+17 tools are registered via `@mcp.tool` in [`src/tvtropes_mcp/server.py`](../src/tvtropes_mcp/server.py). Fifteen query the local SQLite mirror/LanceDB; `web_search` queries the web via OpenSERP and `show_status_card` renders a Prefab card. Every tool is annotated `readOnlyHint`.
 
 ## Tool List
 
@@ -19,6 +19,10 @@
 | `calibre_search` | `title?`, `author?`, `limit` | Search local Calibre library |
 | `calibre_status` | — | Check Calibre library detection |
 | `web_search` | `query`, `engine?`, `limit?` | Search the web for trope context via OpenSERP (requires local openserp on :7000) |
+| `works_in_namespace` | `namespace`, `limit`, `offset` | Browse works by medium |
+| `show_status_card` | — | Prefab scraper/database status card |
+| `trope_agentic_assist` | `goal` | Multi-step research plan via MCP sampling |
+| `vector_status` | — | LanceDB vector count plus rebuild job states |
 
 ## CLI Usage
 

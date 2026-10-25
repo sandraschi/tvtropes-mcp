@@ -2,7 +2,7 @@
 
 ## Project Identity
 - **Name**: tvtropes-mcp
-- **Purpose**: TVTropes local mirror + MCP server — polite crawler, SQLite storage, 12 MCP tools
+- **Purpose**: TVTropes local mirror + MCP server — polite crawler, SQLite storage, 17 MCP tools
 - **Stack**: FastMCP 3.2+, FastAPI, Starlette, SQLite FTS5, curl-cffi, BeautifulSoup4, LanceDB
 - **Ports**: 10964 (backend + MCP HTTP), 10965 (Vite dashboard)
 - **Transports**: stdio (`--stdio`) and streamable HTTP (`--serve`)
@@ -11,7 +11,7 @@
 
 | File | Purpose |
 |------|---------|
-| `src/tvtropes_mcp/server.py` | FastMCP tool registrations (12 tools) |
+| `src/tvtropes_mcp/server.py` | FastMCP tool registrations (17 tools) |
 | `src/tvtropes_mcp/app.py` | FastAPI REST + MCP HTTP mount at `/mcp` |
 | `src/tvtropes_mcp/config.py` | Env-based settings (prefix `TVTROPES_MCP_`) |
 | `src/tvtropes_mcp/settings_manager.py` | User settings persisted to `data/settings.json` |
@@ -27,7 +27,7 @@
 | `scraper/config.yaml` | Scraper politeness config, namespaces, Ollama |
 | `docs/ARCHITECTURE.md` | System architecture and design decisions |
 | `docs/SCRAPER.md` | Scraper design, politeness, storage estimates |
-| `docs/MCP_TOOLS.md` | All 12 MCP tools with examples |
+| `docs/MCP_TOOLS.md` | All 17 MCP tools with examples |
 | `docs/API.md` | REST API endpoint reference |
 | `docs/CROSS_MCP.md` | Deep-link bridge for Plex/Calibre |
 | `docs/ETHICS_AND_LEGAL.md` | CC BY-SA 3.0, ToS, rate-limiting philosophy |
@@ -44,6 +44,7 @@
 | `trope_examples` | Examples filtered by namespace/medium |
 | `related_tropes` | Graph traversal — SubTrope, SuperTrope, SisterTrope, Related |
 | `namespace_list` | List all namespaces and page counts |
+| `works_in_namespace` | Browse works by medium |
 | `random_trope` | Random trope (weighted by example count) |
 | `scraper_status` | Crawl progress, DB size, extraction backlog |
 | `semantic_search` | Vector similarity search via LanceDB + Ollama embeddings |
@@ -51,6 +52,9 @@
 | `calibre_search` | Search local Calibre library by title or author |
 | `calibre_status` | Check if a Calibre library is detected |
 | `web_search` | Web search via OpenSERP for trope context outside the mirror |
+| `show_status_card` | Prefab scraper/database status card |
+| `trope_agentic_assist` | Multi-step research plan via MCP sampling |
+| `vector_status` | LanceDB vector count plus rebuild job states |
 
 ## CLI
 
@@ -63,7 +67,7 @@ uv run python -m tvtropes_mcp --scrape    # Standalone scraper daemon
 ## Testing
 
 ```powershell
-uv run pytest            # 98 tests
+uv run pytest            # 101 tests
 just test                # via justfile
 ```
 

@@ -12,7 +12,7 @@ uv run python -m tvtropes_mcp --scrape    # Standalone scraper
 
 | File | Purpose |
 |------|---------|
-| `src/tvtropes_mcp/server.py` | 13 MCP tools + 5 prompts |
+| `src/tvtropes_mcp/server.py` | 17 MCP tools + 5 prompts |
 | `src/tvtropes_mcp/app.py` | FastAPI REST + MCP HTTP |
 | `scraper/bootstrap.py` | Seed URL discovery (sitemap, pagelist API, namespace indexes) |
 | `scraper/scheduler.py` | Background crawl loop with politeness + daily budget |

@@ -1,4 +1,4 @@
-# Tools — tvtropes-mcp (16 MCP tools)
+# Tools — tvtropes-mcp (17 MCP tools)
 
 Registered in `src/tvtropes_mcp/server.py`. Every tool returns
 `{"success": true, ...}` plus a `message` string on completion or a
@@ -35,6 +35,7 @@ Registered in `src/tvtropes_mcp/server.py`. Every tool returns
 | `calibre_search` | `title`, `author`, `limit` | Search the local Calibre library |
 | `calibre_status` | — | Calibre library detection state |
 | `scraper_status` | — | Crawl progress, DB size, extraction backlog |
+| `vector_status` | — | LanceDB vector count plus rebuild job states |
 
 ## REST mirrors
 
