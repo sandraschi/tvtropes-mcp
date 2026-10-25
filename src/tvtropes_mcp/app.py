@@ -36,11 +36,16 @@ _scraper = ScraperManager(_db_path)
 _start_time = time.time()
 
 # Auto-start crawler on service boot so the mirror is always being populated.
-_res = _scraper.start_crawler()
-if _res.get("success"):
-    log.info("Crawler auto-started: %s", _res.get("message"))
+# Disabled in tests via TVTROPES_MCP_AUTOSTART=0 — a bare import must never
+# start background work (it breaks fresh TestClient fixtures).
+if _settings.autostart:
+    _res = _scraper.start_crawler()
+    if _res.get("success"):
+        log.info("Crawler auto-started: %s", _res.get("message"))
+    else:
+        log.info("Crawler auto-start: %s", _res.get("message"))
 else:
-    log.info("Crawler auto-start: %s", _res.get("message"))
+    log.info("Crawler auto-start disabled by TVTROPES_MCP_AUTOSTART=0")
 
 
 @router.get("/health")
@@ -140,11 +145,24 @@ async def api_events(request: Request):
 
 @router.post("/shutdown")
 async def api_shutdown() -> dict[str, Any]:
-    """Gracefully stop the scraper and shut down the server."""
-    _scraper.stop_crawler()
-    import asyncio
+    """Orderly exit for the NSSM/launcher restart path.
 
-    asyncio.get_event_loop().stop()
+    Checkpoints the scraper, responds 200 immediately, then exits ~500 ms
+    later so the HTTP response flushes first. The fleet launcher calls this
+    before Restart-Service so in-flight crawl writes are not cut off.
+    """
+    import os
+    import threading
+
+    _scraper.stop_crawler()
+
+    def _exit_late() -> None:
+        import time
+
+        time.sleep(0.5)
+        os._exit(0)
+
+    threading.Thread(target=_exit_late, daemon=True).start()
     return {"success": True, "message": "Shutting down"}
 
 
@@ -216,6 +234,9 @@ async def api_scraper_bootstrap() -> dict[str, Any]:
     return result
 
 
+_LAST_CRAWL_CALL: float = 0.0
+
+
 @router.post("/scraper/crawl")
 async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
     """Crawl from a starting URL with depth limit.
@@ -225,12 +246,14 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
     """
     import time as _time
 
-    # Rate limit
+    # Rate limit (module-level timestamp, not a function attribute — mypy-clean
+    # and safe under reload, unlike api_scraper_crawl._last_call).
+    global _LAST_CRAWL_CALL
     now = _time.time()
-    if hasattr(api_scraper_crawl, "_last_call") and now - api_scraper_crawl._last_call < 30:
-        wait = max(1, int(30 - (now - api_scraper_crawl._last_call)))
+    if now - _LAST_CRAWL_CALL < 30:
+        wait = max(1, int(30 - (now - _LAST_CRAWL_CALL)))
         return {"success": False, "error": f"Rate limited. Wait {wait}s before crawling again."}
-    api_scraper_crawl._last_call = now
+    _LAST_CRAWL_CALL = now
 
     from bs4 import BeautifulSoup
 
@@ -296,10 +319,11 @@ async def api_scraper_crawl(body: dict[str, Any]) -> dict[str, Any]:
                         sample_links.extend(
                             {"ns": e["namespace"], "name": e["page_name"]} for e in entries[: 10 - len(sample_links)]
                         )
-                    added = await loop.run_in_executor(
-                        None,
-                        lambda e=entries: queue_urls(_db_path, e, priority=1),
-                    )
+
+                    def _queue(entry_list: list[dict[str, Any]]) -> int:
+                        return queue_urls(_db_path, entry_list, priority=1)
+
+                    added = await loop.run_in_executor(None, _queue, entries)
                     queued += added
                 await asyncio.sleep(1)
             current_level = next_level
@@ -869,6 +893,27 @@ async def api_skill_content(skill_name: str) -> dict[str, Any]:
     return {"name": skill_name, "content": "", "error": "Skill not found"}
 
 
+@router.get("/capabilities")
+async def api_capabilities() -> dict[str, Any]:
+    """Standard fleet capability shape for webapps and agents."""
+    from tvtropes_mcp.server import mcp as _mcp
+
+    tools = await _mcp.list_tools()
+    return {
+        "service": "tvtropes-mcp",
+        "version": "0.2.0",
+        "transports": {
+            "http": "/mcp",
+            "stdio": "uv run python -m tvtropes_mcp --stdio",
+        },
+        "tools": [{"name": t.name, "description": t.description} for t in tools],
+        "tool_count": len(tools),
+        "health": "/api/health",
+        "diagnostics": "/api/v1/diagnostics",
+        "bridge": "/api/bridge",
+    }
+
+
 @router.get("/tools")
 async def api_tools() -> dict[str, Any]:
     return {
@@ -879,6 +924,7 @@ async def api_tools() -> dict[str, Any]:
             "trope_examples",
             "related_tropes",
             "namespace_list",
+            "works_in_namespace",
             "random_trope",
             "scraper_status",
             "trope_lookup_by_title",
@@ -886,6 +932,8 @@ async def api_tools() -> dict[str, Any]:
             "calibre_status",
             "semantic_search",
             "web_search",
+            "show_status_card",
+            "trope_agentic_assist",
         ],
         "mcp_http_path": "/mcp",
         "prompts": [
@@ -926,6 +974,7 @@ async def api_mcp_tool(body: dict[str, Any]) -> dict[str, Any]:
     import json
 
     from fastmcp.exceptions import NotFoundError
+    from mcp.types import TextContent
 
     from tvtropes_mcp.server import mcp
 
@@ -940,8 +989,10 @@ async def api_mcp_tool(body: dict[str, Any]) -> dict[str, Any]:
     except Exception as e:
         return {"success": False, "error": str(e)}
     if result.content:
-        text = result.content[0].text
-        return json.loads(text)
+        first = result.content[0]
+        if not isinstance(first, TextContent):
+            return {"success": False, "error": f"Unexpected content type: {type(first).__name__}"}
+        return json.loads(first.text)
     return {"success": False, "error": "No content returned"}
 
 
@@ -972,7 +1023,16 @@ def build_app() -> FastAPI:
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=[
+            "http://127.0.0.1:10965",
+            "http://localhost:10965",
+            "http://127.0.0.1:10964",
+            "http://localhost:10964",
+            "tauri://localhost",
+            "http://tauri.localhost",
+            "https://tauri.localhost",
+        ],
+        allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|goliath|[a-z0-9-]+\.ts\.net)(:\d+)?",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

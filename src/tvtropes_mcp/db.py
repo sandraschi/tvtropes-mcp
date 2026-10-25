@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from scraper.db import (
@@ -24,7 +25,8 @@ def ensure_db(db_path: str) -> None:
     init_db(db_path)
 
 
-def trope_search(query: str, limit: int = 20, db_path: str | None = None) -> list[dict[str, Any]]:
+def trope_search(query: str, limit: int = 20, db_path: str | Path | None = None) -> list[dict[str, Any]]:
+    assert db_path is not None, "db_path is required"
     results = search_tropes(db_path, query, limit=min(limit, _QUERY_LIMIT))
     return [
         {
@@ -39,7 +41,7 @@ def trope_search(query: str, limit: int = 20, db_path: str | None = None) -> lis
     ]
 
 
-def trope_get(trope_id: str, db_path: str | None = None) -> dict[str, Any] | None:
+def trope_get(trope_id: str, db_path: str | Path) -> dict[str, Any] | None:
     result = get_trope(db_path, trope_id)
     if result is None:
         return None
@@ -66,7 +68,7 @@ def trope_get(trope_id: str, db_path: str | None = None) -> dict[str, Any] | Non
     }
 
 
-def work_tropes(work_id: str, db_path: str | None = None) -> list[dict[str, Any]]:
+def work_tropes(work_id: str, db_path: str | Path) -> list[dict[str, Any]]:
     return get_work_tropes(db_path, work_id)
 
 
@@ -74,22 +76,23 @@ def trope_examples(
     trope_id: str,
     namespace: str | None = None,
     limit: int = 20,
-    db_path: str | None = None,
+    db_path: str | Path | None = None,
 ) -> list[dict[str, Any]]:
+    assert db_path is not None, "db_path is required"
     return get_trope_examples(db_path, trope_id, namespace=namespace, limit=min(limit, _QUERY_LIMIT))
 
 
-def related_tropes(trope_id: str, db_path: str | None = None) -> dict[str, list[dict[str, str]]]:
+def related_tropes(trope_id: str, db_path: str | Path) -> dict[str, list[dict[str, str]]]:
     return get_related_tropes(db_path, trope_id)
 
 
-def namespace_list(db_path: str | None = None) -> list[dict[str, Any]]:
+def namespace_list(db_path: str | Path) -> list[dict[str, Any]]:
     return list_namespaces(db_path)
 
 
 def works_in_namespace(
     namespace: str,
-    db_path: str | None = None,
+    db_path: str | Path,
     limit: int = 50,
     offset: int = 0,
 ) -> list[dict[str, Any]]:
@@ -103,7 +106,7 @@ def works_in_namespace(
         return [{"work_name": r["work_name"], "namespace": namespace} for r in rows]
 
 
-def random_trope_get(db_path: str | None = None) -> dict[str, Any] | None:
+def random_trope_get(db_path: str | Path) -> dict[str, Any] | None:
     result = random_trope(db_path)
     if result is None:
         return None
@@ -117,7 +120,7 @@ def random_trope_get(db_path: str | None = None) -> dict[str, Any] | None:
     }
 
 
-def scraper_status(db_path: str | None = None) -> dict[str, Any]:
+def scraper_status(db_path: str | Path) -> dict[str, Any]:
     crawl = get_crawl_stats(db_path)
     db_stats = get_db_stats(db_path)
     return {

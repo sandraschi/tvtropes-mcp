@@ -120,7 +120,7 @@ def get_book(book_id: int, calibre_db: str | Path | None = None) -> dict[str, An
 
 def lookup_tropes_for_book(
     book_title: str,
-    db_path: str | None = None,
+    db_path: str | Path,
     calibre_db: str | Path | None = None,
 ) -> dict[str, Any]:
     from tvtropes_mcp.db import trope_search, work_tropes

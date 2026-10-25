@@ -11,7 +11,7 @@ from fastmcp import Context, FastMCP
 from fastmcp.server.providers.skills import SkillsDirectoryProvider
 from fastmcp.server.server import ToolResult
 from prefab_ui import PrefabApp
-from prefab_ui.components import Heading, Row
+from prefab_ui.components import Heading, Metric
 from pydantic import Field
 
 from tvtropes_mcp.config import load_settings
@@ -59,7 +59,7 @@ def _get_manager() -> ScraperManager:
 async def trope_search(
     query: Annotated[str, Field(description="Full-text query for trope names and descriptions (FTS5).")],
     limit: Annotated[int, Field(description="Max results.", ge=1, le=100)] = 20,
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Full-text search over trope names and descriptions using SQLite FTS5.
 
@@ -88,7 +88,7 @@ async def trope_search(
 @mcp.tool(annotations={"readOnlyHint": True})
 async def trope_get(
     trope_id: str,
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Get a full trope page - description, examples, and related tropes.
 
@@ -115,7 +115,7 @@ async def trope_get(
 @mcp.tool(annotations={"readOnlyHint": True})
 async def work_tropes(
     work_id: str,
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """List all tropes for a given work.
 
@@ -145,7 +145,7 @@ async def trope_examples(
     trope_id: str,
     namespace: str | None = None,
     limit: int = 20,
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Get examples of a trope, optionally filtered by namespace/medium.
 
@@ -172,7 +172,7 @@ async def trope_examples(
 @mcp.tool(annotations={"readOnlyHint": True})
 async def related_tropes(
     trope_id: str,
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Traverse trope relationships - SubTrope, SuperTrope, SisterTrope, Related.
 
@@ -206,7 +206,7 @@ async def related_tropes(
 
 @mcp.tool(annotations={"readOnlyHint": True})
 async def namespace_list(
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """List all namespaces and their page counts from the mirror database.
 
@@ -229,7 +229,7 @@ async def works_in_namespace(
     namespace: Annotated[str, Field(description="Namespace to list works in (e.g. 'Film', 'Series', 'Anime').")],
     limit: Annotated[int, Field(description="Max results.", ge=1, le=200)] = 50,
     offset: Annotated[int, Field(description="Offset for pagination.", ge=0)] = 0,
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """List works in a given namespace for browsing.
 
@@ -253,7 +253,7 @@ async def works_in_namespace(
 
 @mcp.tool(annotations={"readOnlyHint": True})
 async def random_trope(
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Get a random trope from the mirror database.
 
@@ -278,7 +278,7 @@ async def random_trope(
 
 @mcp.tool(annotations={"readOnlyHint": True})
 async def scraper_status(
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Get scraper progress: crawl stats, DB size, extraction backlog.
 
@@ -317,7 +317,7 @@ async def scraper_status(
 @mcp.tool(annotations={"readOnlyHint": True})
 async def trope_lookup_by_title(
     title: str,
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Cross-reference a book title against the Literature/ trope index.
 
@@ -353,7 +353,7 @@ async def calibre_search(
     title: str | None = None,
     author: str | None = None,
     limit: int = 10,
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Search the local Calibre library for books by title or author.
 
@@ -390,7 +390,7 @@ async def calibre_search(
 
 @mcp.tool(annotations={"readOnlyHint": True})
 async def calibre_status(
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Check if a Calibre library is available on this machine.
 
@@ -414,7 +414,7 @@ async def calibre_status(
 async def semantic_search(
     query: Annotated[str, Field(description="Natural language query to search semantically.")],
     limit: Annotated[int, Field(description="Max results.", ge=1, le=50)] = 10,
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Semantic (vector) search over tropes using LanceDB + Ollama embeddings.
 
@@ -457,7 +457,7 @@ async def web_search(
     query: Annotated[str, Field(description="Search query for the web.")],
     engine: Annotated[str, Field(description="Search engine to use.")] = "google",
     limit: Annotated[int, Field(description="Max results.", ge=1, le=20)] = 5,
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Search the web via the local OpenSERP server for trope context not in the mirror yet.
 
@@ -512,7 +512,7 @@ async def web_search(
 
 
 @mcp.tool(app=True, annotations={"readOnlyHint": True})
-async def show_status_card(ctx: Context = None) -> ToolResult:
+async def show_status_card(ctx: Context | None = None) -> ToolResult:
     """Display scraper and database status as a rich in-chat Prefab card.
 
     ## Return Format
@@ -526,19 +526,19 @@ async def show_status_card(ctx: Context = None) -> ToolResult:
     app = PrefabApp(title="tvtropes-mcp Status")
     with app:
         Heading("Database")
-        Row(label="Tropes", value=str(db_stats.get("tropes", 0)))
-        Row(label="Examples", value=str(db_stats.get("examples", 0)))
-        Row(label="Relations", value=str(db_stats.get("trope_relations", 0)))
-        Row(label="DB Size", value=f"{db_stats.get('size_mb', 0):.1f} MB")
+        Metric(label="Tropes", value=str(db_stats.get("tropes", 0)))
+        Metric(label="Examples", value=str(db_stats.get("examples", 0)))
+        Metric(label="Relations", value=str(db_stats.get("trope_relations", 0)))
+        Metric(label="DB Size", value=f"{db_stats.get('size_mb', 0):.1f} MB")
         Heading("Crawl")
-        Row(label="Crawled", value=str(db_stats.get("crawled", 0)))
-        Row(label="Pending", value=str(db_stats.get("pending", 0)))
-        Row(label="Extracted", value=str(db_stats.get("extracted", 0)))
-        Row(label="Failed", value=str(db_stats.get("failed", 0)))
-        Row(label="Daily", value=str(db_stats.get("daily", 0)))
+        Metric(label="Crawled", value=str(db_stats.get("crawled", 0)))
+        Metric(label="Pending", value=str(db_stats.get("pending", 0)))
+        Metric(label="Extracted", value=str(db_stats.get("extracted", 0)))
+        Metric(label="Failed", value=str(db_stats.get("failed", 0)))
+        Metric(label="Daily", value=str(db_stats.get("daily", 0)))
         Heading("Server")
-        Row(label="Tools", value=str(len(tools) if tools else 13))
-        Row(label="Backend", value="10964")
+        Metric(label="Tools", value=str(len(tools) if tools else 13))
+        Metric(label="Backend", value="10964")
     return ToolResult(
         content=f"tvtropes-mcp: {db_stats.get('tropes', 0)} tropes, "
         f"{db_stats.get('trope_relations', 0)} relations, "
@@ -550,7 +550,7 @@ async def show_status_card(ctx: Context = None) -> ToolResult:
 @mcp.tool(annotations={"readOnlyHint": True})
 async def trope_agentic_assist(
     goal: str,
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> dict:
     """Multi-step research plan via MCP sampling (FastMCP 3.1+).
 
