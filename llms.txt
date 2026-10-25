@@ -1,12 +1,12 @@
 # tvtropes-mcp
 
-> TVTropes local mirror: curl_cffi Chrome 131 crawler, APScheduler politeness loop, SQLite FTS5 storage, Ollama Qwen 2.5 extraction, LanceDB vector store, 12 FastMCP tools, React/Vite dashboard (ports 10964/10965). Calibre cross-reference.
+> TVTropes local mirror: curl_cffi Chrome 131 crawler, APScheduler politeness loop, SQLite FTS5 storage, Ollama Qwen 2.5 extraction, LanceDB vector store, 17 FastMCP tools, React/Vite dashboard (ports 10964/10965). Calibre cross-reference.
 
 **Full reference:** [llms-full.txt](llms-full.txt)
 
 ## Entry
 
-- Python: `src/tvtropes_mcp/` — `server.py` (12 MCP tools), `app.py` (FastAPI + `/mcp`). Dual transport: stdio (`--stdio`) and streamable HTTP (`--serve`, `/mcp`); `GET /.well-known/mcp/manifest.json`.
+- Python: `src/tvtropes_mcp/` — `server.py` (17 MCP tools), `app.py` (FastAPI + `/mcp`). Dual transport: stdio (`--stdio`) and streamable HTTP (`--serve`, `/mcp`); `GET /.well-known/mcp/manifest.json`.
 - Web: `web_sota/` — React + Vite + Tailwind, 10 pages (TropeSearch, WorkBrowser, TropeGraph, Chat, Log, Ollama config, Pages browser, Settings, Help, Dashboard).
 - Crawler: `scraper/` — `crawler.py` (curl_cffi + warmup), `db.py` (SQLite schema + FTS5), `scheduler.py` (APScheduler), `extractor.py` (Ollama async), `parser.py` (BeautifulSoup).
 - Docs: `README.md`, `INSTALL.md`, `docs/` (architecture, scraper, tools, API, cross-MCP, ethics).
@@ -28,6 +28,6 @@
 - LanceDB vector store for semantic search via Ollama nomic-embed-text
 - Cross-MCP bridge: other fleet apps link via `?lookup=Namespace/PageName`
 
-## MCP tools (12)
+## MCP tools (17)
 
-`trope_search`, `trope_get`, `work_tropes`, `trope_examples`, `related_tropes`, `namespace_list`, `random_trope`, `scraper_status`, `semantic_search`, `trope_lookup_by_title`, `calibre_search`, `calibre_status`.
+`trope_search`, `trope_get`, `work_tropes`, `trope_examples`, `related_tropes`, `namespace_list`, `works_in_namespace`, `random_trope`, `scraper_status`, `trope_lookup_by_title`, `calibre_search`, `calibre_status`, `semantic_search`, `web_search`, `show_status_card`, `trope_agentic_assist`, `vector_status`.

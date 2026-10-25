@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "name": "tvtropes-mcp",
   "version": "0.2.0",
-  "description": "TVTropes local mirror: polite curl_cffi crawler, SQLite FTS5 + LanceDB storage, 12 FastMCP tools, React dashboard, Calibre cross-reference, cross-MCP bridge for Plex/Calibre.",
+  "description": "TVTropes local mirror: polite curl_cffi crawler, SQLite FTS5 + LanceDB storage, 17 FastMCP tools, React dashboard, Calibre cross-reference, cross-MCP bridge for Plex/Calibre.",
   "author": {
     "name": "Sandra Schieder"
   },
@@ -49,7 +49,12 @@
     { "name": "semantic_search", "description": "Vector similarity search via LanceDB + Ollama embeddings" },
     { "name": "trope_lookup_by_title", "description": "Cross-reference book title against Literature/ namespace" },
     { "name": "calibre_search", "description": "Search local Calibre library by title or author" },
-    { "name": "calibre_status", "description": "Check if a Calibre library is detected" }
+    { "name": "calibre_status", "description": "Check if a Calibre library is detected" },
+    { "name": "works_in_namespace", "description": "Browse works by medium (Anime, Film, Series...)" },
+    { "name": "web_search", "description": "Web search via OpenSERP for trope context outside the mirror" },
+    { "name": "show_status_card", "description": "Prefab scraper/database status card" },
+    { "name": "trope_agentic_assist", "description": "Multi-step research plan via MCP sampling" },
+    { "name": "vector_status", "description": "LanceDB vector count plus rebuild job states" }
   ],
   "cross_mcp_bridge": {
     "description": "Deep-link from other MCP webapps (Plex, Calibre) to TVTropes pages",

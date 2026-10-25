@@ -7,7 +7,7 @@
   <a href="https://github.com/PrefectHQ/fastmcp"><img src="https://img.shields.io/badge/FastMCP-3.2-7c5cfc?style=flat-square" alt="FastMCP"></a>
 </p>
 
-**A considerate local mirror of the TVTropes knowledge graph — polite background crawler, 12 FastMCP tools, React dashboard, LanceDB semantic search, Calibre cross-reference.**
+**A considerate local mirror of the TVTropes knowledge graph — polite background crawler, 17 FastMCP tools, React dashboard, LanceDB semantic search, Calibre cross-reference.**
 
 ```powershell
 uv sync --extra dev

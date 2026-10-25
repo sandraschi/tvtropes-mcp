@@ -2,7 +2,7 @@
   "$schema": "https://glama.ai/schemas/mcp.json",
   "name": "tvtropes-mcp",
   "version": "0.2.0",
-  "description": "TVTropes local mirror: polite curl_cffi crawler, SQLite FTS5 storage, LanceDB vector search, 12 FastMCP tools, React dashboard (10964/10965), Calibre cross-reference.",
+  "description": "TVTropes local mirror: polite curl_cffi crawler, SQLite FTS5 storage, LanceDB vector search, 17 FastMCP tools, React dashboard (10964/10965), Calibre cross-reference.",
   "author": "Sandra Schieder",
   "license": "MIT",
   "language": "python",
