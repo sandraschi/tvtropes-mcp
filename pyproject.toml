@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tvtropes-mcp"
 version = "0.1.0"
-description = "TVTropes local mirror + MCP server â€” background scraper + query interface"
+description = "TVTropes local mirror + MCP server - background scraper + query interface"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
