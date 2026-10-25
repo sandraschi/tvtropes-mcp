@@ -98,9 +98,14 @@ class Extractor:
 
     async def extract_page(self, html: str, url: str) -> dict[str, Any]:
         result: dict[str, Any] = {
-            "success": False, "error": None,
-            "title": None, "description": None, "laconic": None,
-            "examples": [], "related": [], "categories": [],
+            "success": False,
+            "error": None,
+            "title": None,
+            "description": None,
+            "laconic": None,
+            "examples": [],
+            "related": [],
+            "categories": [],
         }
         client = await self._ensure_client()
         truncated = html[:8000]
@@ -204,9 +209,11 @@ class Extractor:
             return {"success": True, "extracted": 0, "reason": "no_crawled_pages"}
 
         errors = 0
+        semaphore = self._semaphore
+        assert semaphore is not None
 
         async def _extract_one(row) -> bool:
-            async with self._semaphore:
+            async with semaphore:
                 page_id = row["id"]
                 url = row["url"]
                 content_hash = row["content_hash"]
@@ -217,6 +224,7 @@ class Extractor:
                 result = await self.extract_page(html, url)
                 if not result["success"] and use_html_fallback:
                     from scraper.parser import extract_trope_from_html
+
                     result = extract_trope_from_html(html, url)
                 if not result["success"]:
                     log.warning(f"Extraction failed for {url}: {result.get('error')}")
@@ -224,9 +232,14 @@ class Extractor:
                 classified = classify_url(url)
                 ns = classified[0] if classified else "Main"
                 name = classified[1] if classified else "unknown"
-                upsert_trope(self.db_path, ns, name, title=result["title"],
-                             description=result.get("description"),
-                             laconic=result.get("laconic"))
+                upsert_trope(
+                    self.db_path,
+                    ns,
+                    name,
+                    title=result["title"],
+                    description=result.get("description"),
+                    laconic=result.get("laconic"),
+                )
                 for ex in result.get("examples", []):
                     work_ns = ex.get("work_namespace")
                     work_name = ex.get("work_name")
@@ -244,11 +257,16 @@ class Extractor:
                 mark_extracted(self.db_path, page_id)
                 try:
                     from tvtropes_mcp.vector_store import upsert_trope_embedding
+
                     await upsert_trope_embedding(
                         self.config.db_path,
-                        {"namespace": ns, "page_name": name,
-                         "title": result.get("title"), "description": result.get("description"),
-                         "laconic": result.get("laconic")},
+                        {
+                            "namespace": ns,
+                            "page_name": name,
+                            "title": result.get("title"),
+                            "description": result.get("description"),
+                            "laconic": result.get("laconic"),
+                        },
                         ollama_host=self.config.ollama_url,
                         api_mode=self.config.api_mode,
                     )

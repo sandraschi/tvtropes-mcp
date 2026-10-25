@@ -45,7 +45,7 @@ class TvtropesCrawler:
 
     def __init__(self, config: Config) -> None:
         self.config = config
-        self._session = None
+        self._session: Any = None
         self._request_count = 0
         self._cache_dir = Path(config.cache_dir)
         self._cache_dir.mkdir(parents=True, exist_ok=True)
@@ -179,7 +179,7 @@ class TvtropesCrawler:
             result["error"] = f"Invalid scraping API config: provider={provider}, key_set={bool(api_key)}"
             return result
 
-        params = dict(_SCRAPING_API_PARAMS[provider])
+        params: dict[str, Any] = dict(_SCRAPING_API_PARAMS[provider])
         for k in params:
             if params[k] is None:
                 params[k] = api_key if k in ("api_key", "apikey") else url

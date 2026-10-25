@@ -48,7 +48,7 @@ def extract_page_title(soup: BeautifulSoup) -> str | None:
 def extract_page_description(soup: BeautifulSoup) -> str | None:
     meta = soup.find("meta", attrs={"name": "description"})
     if meta and meta.get("content"):
-        return meta["content"].strip()
+        return str(meta["content"]).strip()
     folder = soup.find("div", class_="folder")
     if folder:
         p = folder.find("p")
@@ -81,7 +81,7 @@ def extract_page_links(soup: BeautifulSoup, base_url: str = TVTROPES_BASE) -> li
     links: list[dict[str, str]] = []
     seen = set()
     for a in soup.find_all("a", href=True):
-        href: str = a["href"]
+        href = str(a["href"])
         full_url = urljoin(base_url, href)
         classified = classify_url(full_url)
         if classified is None:
@@ -138,7 +138,7 @@ def extract_trope_links(soup: BeautifulSoup) -> list[dict[str, str]]:
     trope_links: list[dict[str, str]] = []
     seen = set()
     for a in soup.find_all("a", href=True):
-        href: str = a["href"]
+        href = str(a["href"])
         full_url = urljoin(TVTROPES_BASE, href)
         classified = classify_url(full_url)
         if classified is None:
@@ -162,7 +162,7 @@ def extract_work_trope_pairs(soup: BeautifulSoup) -> list[dict[str, str]]:
     pairs: list[dict[str, str]] = []
     seen = set()
     for a in soup.find_all("a", href=True):
-        href: str = a["href"]
+        href = str(a["href"])
         full_url = urljoin(TVTROPES_BASE, href)
         classified = classify_url(full_url)
         if classified is None:
@@ -204,7 +204,7 @@ def extract_page_section(soup: BeautifulSoup, section_id: str) -> str | None:
 def extract_image_url(soup: BeautifulSoup) -> str | None:
     img = soup.find("img", class_="entry-image")
     if img and img.get("src"):
-        src: str = img["src"]
+        src = str(img["src"])
         if src.startswith("//"):
             src = "https:" + src
         elif src.startswith("/"):
@@ -262,11 +262,13 @@ def extract_trope_from_html(html: str, url: str) -> dict[str, Any]:
     # Extract related tropes from trope_links
     related = []
     for tl in meta.get("trope_links", []):
-        related.append({
-            "relation_type": "Related",
-            "namespace": tl.get("namespace", "Main"),
-            "page_name": tl.get("page_name", ""),
-        })
+        related.append(
+            {
+                "relation_type": "Related",
+                "namespace": tl.get("namespace", "Main"),
+                "page_name": tl.get("page_name", ""),
+            }
+        )
 
     return {
         "success": True,

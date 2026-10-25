@@ -194,7 +194,7 @@ def seed_from_pagelist(db_path: str, crawler: TvtropesCrawler) -> int:
             soup = BeautifulSoup(html, "lxml")
             links = []
             for a in soup.find_all("a", href=True):
-                href: str = a["href"]
+                href = str(a["href"])
                 full = f"{TVTROPES_BASE}{href}" if href.startswith("/") else href
                 classified = classify_url(full)
                 if classified:

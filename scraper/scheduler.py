@@ -75,20 +75,13 @@ class CrawlScheduler:
         from scraper.db import get_conn
 
         with get_conn(self.db_path) as conn:
-            orphaned = conn.execute(
-                "SELECT COUNT(*) FROM pages WHERE status='crawling'"
-            ).fetchone()[0]
+            orphaned = conn.execute("SELECT COUNT(*) FROM pages WHERE status='crawling'").fetchone()[0]
             if orphaned:
-                conn.execute(
-                    "UPDATE pages SET status='pending' WHERE status='crawling'"
-                )
+                conn.execute("UPDATE pages SET status='pending' WHERE status='crawling'")
                 conn.commit()
                 log.info(f"Recovered {orphaned} interrupted page(s) — reset to pending")
 
-            conn.execute(
-                "UPDATE crawl_log SET ended_at=datetime('now'), errors=errors+1 "
-                "WHERE ended_at IS NULL"
-            )
+            conn.execute("UPDATE crawl_log SET ended_at=datetime('now'), errors=errors+1 WHERE ended_at IS NULL")
             conn.commit()
 
     def stop(self) -> None:
@@ -222,7 +215,7 @@ class CrawlScheduler:
         if self._pages_crawled % 100 == 0:
             stats = get_crawl_stats(self.db_path)
             log.info(f"Crawl progress: {stats}")
-            log.info(f"MILESTONE: crawled={self._pages_crawled} daily={stats.get('daily',0)} db_mb=?")
+            log.info(f"MILESTONE: crawled={self._pages_crawled} daily={stats.get('daily', 0)} db_mb=?")
 
         if self._pages_crawled >= self._next_milestone:
             self._milestones["pages"] = self._pages_crawled
