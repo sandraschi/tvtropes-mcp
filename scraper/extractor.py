@@ -13,7 +13,6 @@ from scraper.crawler import TvtropesCrawler
 from scraper.db import (
     Config,
     count_crawled,
-    count_extracted,
     get_conn,
     insert_example,
     insert_relation,
@@ -153,18 +152,37 @@ class Extractor:
                 result["error"] = str(e)
                 return result
 
+        # NOTE: no num_predict cap. On thinking models (gemma4, qwen3, …) the
+        # thinking trace consumes the num_predict budget, so a capped run ends
+        # the moment thinking stops — observed as HTTP 200 with an EMPTY
+        # response string (20/20 rows failing, "Empty Ollama response").
+        # temperature alone is safe. Runaway length is bounded by the 120 s
+        # client timeout, not by a token cap that starves the answer.
         payload = {
             "model": self.config.ollama_model,
             "prompt": f"{EXTRACTION_PROMPT}\n\nURL: {url}\n\nPage HTML:\n{truncated}",
             "stream": False,
             "format": "json",
-            "options": {"temperature": 0.1, "num_predict": 2048},
+            "options": {"temperature": 0.1},
         }
+        # One retry on timeout: the first call after an idle period pays
+        # Ollama weight-load latency and can exceed the client timeout even
+        # though the server is healthy. Second attempt reuses the hot model.
+        last_error = "Ollama timeout"
+        for _attempt in range(2):
+            try:
+                r = await client.post(
+                    f"{self.config.ollama_url}/api/generate",
+                    json=payload,
+                )
+                break
+            except httpx.TimeoutException:
+                last_error = "Ollama timeout"
+                continue
+        else:
+            result["error"] = last_error
+            return result
         try:
-            r = await client.post(
-                f"{self.config.ollama_url}/api/generate",
-                json=payload,
-            )
             if r.status_code != 200:
                 result["error"] = f"Ollama HTTP {r.status_code}"
                 return result
@@ -289,7 +307,10 @@ class Extractor:
             "success": True,
             "extracted": extracted,
             "errors": errors,
-            "pending_extraction": count_crawled(self.db_path) - count_extracted(self.db_path),
+            # The pending set IS pages with status='crawled' (run_pass selects
+            # exactly those). crawled-minus-extracted is meaningless arithmetic
+            # over two independent status buckets and goes negative.
+            "pending_extraction": count_crawled(self.db_path),
         }
 
     async def close(self):

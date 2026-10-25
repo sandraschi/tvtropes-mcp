@@ -58,6 +58,19 @@ blaming the code.
 `.gitattributes` forces LF. If your editor writes CRLF, Biome reflows
 every line and the diff explodes. Set LF and re-save.
 
+## Extraction returns 20/20 "Empty Ollama response"
+
+`num_predict` caps **total** tokens **including the thinking trace** on
+reasoning models (gemma4, qwen3, …). The extractor used to send
+`options: {temperature: 0.1, num_predict: 2048}` with `format: "json"` —
+thinking ate the whole budget and Ollama returned HTTP 200 with an empty
+`response` string on every row. Bisected 2026-10-25: `temperature` alone is
+harmless; any `num_predict` truncates (32 → 2 chars leak, 2048 → empty).
+Fix: drop `num_predict` from extraction payloads (runaway length is bounded
+by the 120 s client timeout, not a cap that starves the answer). If you
+change the extraction model, re-run one page through `extract_page`
+directly and check `len(response)` before a full pass.
+
 ## Dashboard shows stale tool counts
 
 `manifest.json`, `glama.json`, the Dashboard hero, and
