@@ -55,6 +55,12 @@ def _get_manager() -> ScraperManager:
     return _scraper_manager
 
 
+def _error_response(tool: str, error: object, **blanks: Any) -> dict[str, Any]:
+    """Standard failure shape: log once here, return dialogic {success, message, error}."""
+    log.error(f"{tool} failed: {error}", exc_info=True)
+    return {"success": False, "message": f"{tool} failed: {error}", "error": str(error), **blanks}
+
+
 @mcp.tool(annotations={"readOnlyHint": True}, version="1.0.0", output_schema={"type": "object"})
 async def trope_search(
     query: Annotated[str, Field(description="Full-text query for trope names and descriptions (FTS5).")],
@@ -76,13 +82,13 @@ async def trope_search(
         results = db_trope_search(query, limit=limit, db_path=_db_path)
         return {
             "success": True,
+            "message": f"{len(results)} tropes matching '{query}'",
             "query": query,
             "results": results,
             "total": len(results),
         }
     except Exception as e:
-        log.error(f"trope_search failed: {e}", exc_info=True)
-        return {"success": False, "query": query, "results": [], "total": 0, "error": str(e)}
+        return _error_response("trope_search", e, query=query, results=[], total=0)
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -105,11 +111,15 @@ async def trope_get(
     try:
         result = db_trope_get(trope_id, db_path=_db_path)
         if result is None:
-            return {"success": False, "trope": None, "error": f"Trope not found: {trope_id}"}
-        return {"success": True, "trope": result}
+            return {
+                "success": False,
+                "message": f"Trope not found: {trope_id}",
+                "trope": None,
+                "error": f"Trope not found: {trope_id}",
+            }
+        return {"success": True, "message": f"Trope loaded: {trope_id}", "trope": result}
     except Exception as e:
-        log.error(f"trope_get failed: {e}", exc_info=True)
-        return {"success": False, "trope": None, "error": str(e)}
+        return _error_response("trope_get", e, trope=None)
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -131,13 +141,13 @@ async def work_tropes(
         results = db_work_tropes(work_id, db_path=_db_path)
         return {
             "success": True,
+            "message": f"{len(results)} tropes in {work_id}",
             "work": {"id": work_id},
             "tropes": results,
             "count": len(results),
         }
     except Exception as e:
-        log.error(f"work_tropes failed: {e}", exc_info=True)
-        return {"success": False, "work": {"id": work_id}, "tropes": [], "count": 0, "error": str(e)}
+        return _error_response("work_tropes", e, work={"id": work_id}, tropes=[], count=0)
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -160,13 +170,13 @@ async def trope_examples(
         results = db_trope_examples(trope_id, namespace=namespace, limit=limit, db_path=_db_path)
         return {
             "success": True,
+            "message": f"{len(results)} examples for {trope_id}",
             "trope": trope_id,
             "examples": results,
             "count": len(results),
         }
     except Exception as e:
-        log.error(f"trope_examples failed: {e}", exc_info=True)
-        return {"success": False, "trope": trope_id, "examples": [], "count": 0, "error": str(e)}
+        return _error_response("trope_examples", e, trope=trope_id, examples=[], count=0)
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -188,20 +198,20 @@ async def related_tropes(
         result = db_related_tropes(trope_id, db_path=_db_path)
         return {
             "success": True,
+            "message": f"Related tropes for {trope_id}",
             "trope": trope_id,
             **result,
         }
     except Exception as e:
-        log.error(f"related_tropes failed: {e}", exc_info=True)
-        return {
-            "success": False,
-            "trope": trope_id,
-            "sub_tropes": [],
-            "super_tropes": [],
-            "sister_tropes": [],
-            "related_tropes": [],
-            "error": str(e),
-        }
+        return _error_response(
+            "related_tropes",
+            e,
+            trope=trope_id,
+            sub_tropes=[],
+            super_tropes=[],
+            sister_tropes=[],
+            related_tropes=[],
+        )
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -218,10 +228,9 @@ async def namespace_list(
     """
     try:
         namespaces = db_namespace_list(db_path=_db_path)
-        return {"success": True, "namespaces": namespaces}
+        return {"success": True, "message": f"{len(namespaces)} namespaces", "namespaces": namespaces}
     except Exception as e:
-        log.error(f"namespace_list failed: {e}", exc_info=True)
-        return {"success": False, "namespaces": [], "error": str(e)}
+        return _error_response("namespace_list", e, namespaces=[])
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -245,10 +254,15 @@ async def works_in_namespace(
     """
     try:
         works = db_works_in_namespace(namespace, db_path=_db_path, limit=limit, offset=offset)
-        return {"success": True, "namespace": namespace, "works": works, "total": len(works)}
+        return {
+            "success": True,
+            "message": f"{len(works)} works in {namespace}",
+            "namespace": namespace,
+            "works": works,
+            "total": len(works),
+        }
     except Exception as e:
-        log.error(f"works_in_namespace failed: {e}", exc_info=True)
-        return {"success": False, "namespace": namespace, "works": [], "total": 0, "error": str(e)}
+        return _error_response("works_in_namespace", e, namespace=namespace, works=[], total=0)
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -270,10 +284,9 @@ async def random_trope(
         result = random_trope_get(db_path=_db_path)
         if result is None:
             return {"success": False, "trope": None, "message": "No tropes in database yet - run the scraper first"}
-        return {"success": True, "trope": result}
+        return {"success": True, "message": f"Random trope: {result.get('id', 'unknown')}", "trope": result}
     except Exception as e:
-        log.error(f"random_trope failed: {e}", exc_info=True)
-        return {"success": False, "trope": None, "error": str(e)}
+        return _error_response("random_trope", e, trope=None)
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -302,16 +315,15 @@ async def scraper_status(
             "running": status.get("crawler", {}).get("running", False),
             "session_id": status.get("crawler", {}).get("session_id"),
         }
-        return {"success": True, **stats}
+        return {"success": True, "message": "Scraper status", **stats}
     except Exception as e:
-        log.error(f"scraper_status failed: {e}", exc_info=True)
-        return {
-            "success": False,
-            "crawl": {"pages_visited": 0, "pages_queued": 0, "pages_total_estimate": 220000},
-            "db": {"size_mb": 0.0, "tropes": 0, "examples": 0, "trope_relations": 0, "work_tropes": 0},
-            "ollama": {"queue_depth": 0, "avg_latency_ms": 0.0},
-            "error": str(e),
-        }
+        return _error_response(
+            "scraper_status",
+            e,
+            crawl={"pages_visited": 0, "pages_queued": 0, "pages_total_estimate": 220000},
+            db={"size_mb": 0.0, "tropes": 0, "examples": 0, "trope_relations": 0, "work_tropes": 0},
+            ollama={"queue_depth": 0, "avg_latency_ms": 0.0},
+        )
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -372,18 +384,19 @@ async def trope_lookup_by_title(
     try:
         from tvtropes_mcp.calibre_ops import lookup_tropes_for_book
 
-        return lookup_tropes_for_book(title, db_path=_db_path)
+        result = lookup_tropes_for_book(title, db_path=_db_path)
+        result["message"] = f"Literature matches for '{title}'"
+        return result
     except Exception as e:
-        log.error(f"trope_lookup_by_title failed: {e}", exc_info=True)
-        return {
-            "success": False,
-            "book_title": title,
-            "direct_literature_match": [],
-            "fts_results": [],
-            "total_direct": 0,
-            "total_fts": 0,
-            "error": str(e),
-        }
+        return _error_response(
+            "trope_lookup_by_title",
+            e,
+            book_title=title,
+            direct_literature_match=[],
+            fts_results=[],
+            total_direct=0,
+            total_fts=0,
+        )
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -409,6 +422,7 @@ async def calibre_search(
         if calibre_db is None:
             return {
                 "success": False,
+                "message": "Calibre library not found",
                 "query": {"title": title, "author": author},
                 "books": [],
                 "total": 0,
@@ -417,13 +431,13 @@ async def calibre_search(
         books = search_books(title=title, author=author, limit=limit, calibre_db=calibre_db)
         return {
             "success": True,
+            "message": f"{len(books)} Calibre books",
             "query": {"title": title, "author": author},
             "books": books,
             "total": len(books),
         }
     except Exception as e:
-        log.error(f"calibre_search failed: {e}", exc_info=True)
-        return {"success": False, "query": {"title": title, "author": author}, "books": [], "total": 0, "error": str(e)}
+        return _error_response("calibre_search", e, query={"title": title, "author": author}, books=[], total=0)
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -442,10 +456,11 @@ async def calibre_status(
         from tvtropes_mcp.calibre_ops import calibre_status as _calibre_status
 
         result = _calibre_status()
-        return {"success": True, **result}
+        result["message"] = "Calibre status"
+        result["success"] = True
+        return result
     except Exception as e:
-        log.error(f"calibre_status failed: {e}", exc_info=True)
-        return {"success": False, "found": False, "library_path": None, "book_count": 0, "error": str(e)}
+        return _error_response("calibre_status", e, found=False, library_path=None, book_count=0)
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -481,13 +496,13 @@ async def semantic_search(
         )
         return {
             "success": True,
+            "message": f"{len(results)} semantic matches for '{query}'",
             "query": query,
             "results": results,
             "total": len(results),
         }
     except Exception as e:
-        log.error(f"semantic_search failed: {e}", exc_info=True)
-        return {"success": False, "query": query, "results": [], "total": 0, "error": str(e)}
+        return _error_response("semantic_search", e, query=query, results=[], total=0)
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
@@ -521,6 +536,7 @@ async def web_search(
     except httpx.ConnectError:
         return {
             "success": False,
+            "message": "OpenSERP not reachable",
             "query": query,
             "engine": engine,
             "results": [],
@@ -528,8 +544,7 @@ async def web_search(
             "error": "OpenSERP not reachable - start it with `npx -y @openserp/mcp` or `openserp serve`",
         }
     except Exception as e:
-        log.error(f"web_search failed: {e}", exc_info=True)
-        return {"success": False, "query": query, "engine": engine, "results": [], "total": 0, "error": str(e)}
+        return _error_response("web_search", e, query=query, engine=engine, results=[], total=0)
 
     results = []
     for r_item in data.get("results", []):
@@ -542,6 +557,7 @@ async def web_search(
         )
     return {
         "success": True,
+        "message": f"{len(results)} web results for '{query}' via {engine}",
         "query": query,
         "engine": engine,
         "results": results,
@@ -618,16 +634,23 @@ async def trope_agentic_assist(
     if ctx and hasattr(ctx, "sample") and callable(ctx.sample):
         try:
             result = await ctx.sample(system)
-            return {"success": True, "result": str(result), "mode": "sampling"}
+            return {
+                "success": True,
+                "message": f"Sampled research plan for '{goal}'",
+                "result": str(result),
+                "mode": "sampling",
+            }
         except Exception as exc:
             return {
                 "success": False,
+                "message": f"Sampling failed: {exc}",
                 "result": "",
                 "mode": "error",
                 "error": f"Sampling failed: {exc}",
             }
     return {
         "success": True,
+        "message": f"Manual research plan for '{goal}' (sampling unavailable)",
         "result": "MCP sampling is not available on this host. "
         f"To research '{goal}', call these tools manually:\n"
         "1. trope_search for broad keyword discovery\n"
