@@ -6,6 +6,7 @@ import asyncio
 import json as _json
 import logging
 import time
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import APIRouter, FastAPI, Request
@@ -1126,10 +1127,23 @@ def build_app() -> FastAPI:
     settings = load_settings()
     from fastapi.middleware.cors import CORSMiddleware
 
+    @asynccontextmanager
+    async def _lifespan(app: FastAPI):
+        async with mcp_http.lifespan(app):
+            # Start the background extractor inside the serving loop. The
+            # fire-and-forget in ScraperManager.start_crawler() silently
+            # no-ops at import time (no running loop there), so without this
+            # the extractor never runs in the HTTP daemon and works/examples
+            # stay empty forever. Gated like the crawler autostart so tests
+            # (TestClient runs lifespan) stay side-effect free.
+            if _settings.autostart:
+                await _scraper.start_extractor()
+            yield
+
     app = FastAPI(
         title="tvtropes-mcp",
         version="0.2.0",
-        lifespan=mcp_http.lifespan,
+        lifespan=_lifespan,
     )
     app.add_middleware(
         CORSMiddleware,
