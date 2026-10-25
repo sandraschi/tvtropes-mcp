@@ -17,6 +17,8 @@ lint:
 format:
     uv run ruff format src/ scraper/ tests/
 
+alias fmt := format
+
 # Ruff format check (CI mode, read-only)
 format-check:
     uv run ruff format --check src/ scraper/ tests/
@@ -28,6 +30,10 @@ test:
 # Run tests verbosely, stop on first failure
 test-all:
     uv run python -m pytest tests/ -v --tb=long -x
+
+# End-to-end tests (TestClient against seeded DB, no network)
+e2e:
+    uv run python -m pytest tests/test_e2e.py -v --tb=short
 
 # Biome lint frontend
 web-lint:
@@ -140,6 +146,6 @@ clean:
 
 # Build Tauri native desktop app (full pipeline: frontend + backend)
 build-native:
-    Set-Location '{{justfile_directory()}}\native'; $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"; pwsh -NoProfile -File '{{justfile_directory()}}\native\build.ps1'
+    Set-Location '{{justfile_directory()}}\native'; $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"; powershell.exe -NoProfile -ExecutionPolicy Bypass -File '{{justfile_directory()}}\native\build.ps1'
 
 # CUA smoke test via fleet.just (`just cua-nsis-test` runs scripts/cua-smoke.py)
