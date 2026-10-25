@@ -43,6 +43,19 @@ def extract_main_content(html: str) -> str:
         for tag in soup.select(selector):
             tag.decompose()
 
+    # XSS hardening: extracted HTML is rendered via dangerouslySetInnerHTML in
+    # the dashboard, so strip scriptable remnants that tag removal misses
+    # (event-handler attributes, javascript: URLs, embedded frames/objects).
+    for tag in soup.find_all(True):
+        for attr in [a for a in tag.attrs if a.lower().startswith("on")]:
+            del tag.attrs[attr]
+        for attr in ("href", "src", "action"):
+            val = tag.attrs.get(attr)
+            if isinstance(val, str) and val.strip().lower().startswith("javascript:"):
+                del tag.attrs[attr]
+        if tag.name in ("iframe", "object", "embed", "form"):
+            tag.decompose()
+
     # Try multiple content area selectors
     for selector in [
         "#main-article",
