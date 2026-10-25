@@ -122,9 +122,13 @@ export function Dashboard() {
               extractor: { running: data.extractor_running ?? prev.extractor?.running },
             };
           });
-        } catch { /* ignore parse errors */ }
+        } catch {
+          /* ignore parse errors */
+        }
       };
-    } catch { /* SSE not available */ }
+    } catch {
+      /* SSE not available */
+    }
 
     let unlisten: (() => void) | undefined;
     (async () => {
@@ -132,9 +136,12 @@ export function Dashboard() {
         const { listen } = await import("@tauri-apps/api/event");
         unlisten = await listen<string>("backend-status", (event) => {
           if (event.payload === "ready") fetchStatus();
-          else if (typeof event.payload === "string" && event.payload.startsWith("error:")) setErr(event.payload);
+          else if (typeof event.payload === "string" && event.payload.startsWith("error:"))
+            setErr(event.payload);
         });
-      } catch { /* not in Tauri */ }
+      } catch {
+        /* not in Tauri */
+      }
     })();
 
     return () => {
@@ -230,7 +237,8 @@ export function Dashboard() {
           Crawl a page to index it
         </CardTitle>
         <p className="text-sm text-muted-foreground mt-1">
-          Pick a starting point below. The polite scraper fetches the page and follows links up to the chosen depth.
+          Pick a starting point below. The polite scraper fetches the page and follows links up to
+          the chosen depth.
         </p>
         <div className="flex flex-wrap gap-2 mt-3">
           <select
@@ -247,7 +255,9 @@ export function Dashboard() {
             <option value="Series/BreakingBad">Series/BreakingBad</option>
             <option value="Literature/HarryPotter">Literature/HarryPotter</option>
             <option value="VideoGame/Portal">VideoGame/Portal</option>
-            <option value="WesternAnimation/SpongeBobSquarePants">WesternAnimation/SpongeBobSquarePants</option>
+            <option value="WesternAnimation/SpongeBobSquarePants">
+              WesternAnimation/SpongeBobSquarePants
+            </option>
             <option value="Music/TheBeatles">Music/TheBeatles</option>
           </select>
           <select
@@ -307,8 +317,11 @@ export function Dashboard() {
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Sample linked pages:</p>
                 <div className="flex flex-wrap gap-1">
-                  {crawlResult.sample_links.map((l, i) => (
-                    <span key={i} className="text-xs bg-muted/40 px-1.5 py-0.5 rounded">
+                  {crawlResult.sample_links.map((l) => (
+                    <span
+                      key={`${l.ns}/${l.name}`}
+                      className="text-xs bg-muted/40 px-1.5 py-0.5 rounded"
+                    >
                       {l.ns}/{l.name}
                     </span>
                   ))}
@@ -317,8 +330,8 @@ export function Dashboard() {
             )}
             {crawlResult.next_steps && crawlResult.next_steps.length > 0 && (
               <div className="text-xs text-green-400 space-y-0.5">
-                {crawlResult.next_steps.map((s, i) => (
-                  <p key={i}>{s}</p>
+                {crawlResult.next_steps.map((s) => (
+                  <p key={s}>{s}</p>
                 ))}
               </div>
             )}
@@ -329,8 +342,10 @@ export function Dashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card data-testid="kpi-server">
-          <CardTitle className="text-sm text-muted-foreground font-normal">API
-            <span className="inline-block ml-2 w-2 h-2 rounded-full align-middle"
+          <CardTitle className="text-sm text-muted-foreground font-normal">
+            API
+            <span
+              className="inline-block ml-2 w-2 h-2 rounded-full align-middle"
               data-testid="backend-dot"
               style={{ background: health ? "#22c55e" : err ? "#ef4444" : "#6b7280" }}
             />
@@ -365,13 +380,28 @@ export function Dashboard() {
           <Button size="sm" onClick={startScraper} disabled={s?.state === "running"}>
             <Play className="h-4 w-4 mr-1" /> Start
           </Button>
-          <Button size="sm" variant="secondary" onClick={stopScraper} disabled={s?.state !== "running"}>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={stopScraper}
+            disabled={s?.state !== "running"}
+          >
             <Square className="h-4 w-4 mr-1" /> Stop
           </Button>
-          <Button size="sm" variant="outline" onClick={pauseScraper} disabled={s?.state !== "running" || s?.paused}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={pauseScraper}
+            disabled={s?.state !== "running" || s?.paused}
+          >
             Pause
           </Button>
-          <Button size="sm" variant="outline" onClick={resumeScraper} disabled={s?.state !== "running" || !s?.paused}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={resumeScraper}
+            disabled={s?.state !== "running" || !s?.paused}
+          >
             Resume
           </Button>
         </div>
@@ -422,7 +452,9 @@ export function Dashboard() {
             {s.current_url && (
               <div className="rounded border border-primary/20 bg-primary/5 px-3 py-2">
                 <p className="text-xs text-muted-foreground">Currently crawling</p>
-                <p className="text-sm font-mono truncate" title={s.current_url}>{s.current_url}</p>
+                <p className="text-sm font-mono truncate" title={s.current_url}>
+                  {s.current_url}
+                </p>
               </div>
             )}
           </div>

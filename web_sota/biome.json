@@ -16,7 +16,7 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"preset": "recommended",
+			"recommended": true,
 			"style": {
 				"useConst": "error"
 			},
@@ -31,5 +31,22 @@
 			"semicolons": "always",
 			"trailingCommas": "all"
 		}
-	}
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["**/*.css"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noUnknownAtRules": "off"
+					}
+				}
+			}
+		}
+	]
 }

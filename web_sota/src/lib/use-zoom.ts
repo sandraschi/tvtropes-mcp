@@ -20,7 +20,9 @@ export function useZoom() {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       const win = await getCurrentWindow();
       (win as unknown as { setZoom: (v: number) => Promise<void> }).setZoom(level);
-    } catch { /* dev browser */ }
+    } catch {
+      /* dev browser */
+    }
   }, []);
 
   useEffect(() => {
@@ -28,9 +30,8 @@ export function useZoom() {
       if (!e.ctrlKey) return;
       e.preventDefault();
       setZoomIndex((prev) => {
-        const next = e.deltaY < 0
-          ? Math.min(prev + 1, ZOOM_LEVELS.length - 1)
-          : Math.max(prev - 1, 0);
+        const next =
+          e.deltaY < 0 ? Math.min(prev + 1, ZOOM_LEVELS.length - 1) : Math.max(prev - 1, 0);
         if (next !== prev) applyZoom(ZOOM_LEVELS[next]);
         return next;
       });

@@ -1,4 +1,14 @@
-import { ArrowRight, Brain, Gauge, Globe, HardDrive, Loader2, RotateCcw, Save, Shield } from "lucide-react";
+import {
+  ArrowRight,
+  Brain,
+  Gauge,
+  Globe,
+  HardDrive,
+  Loader2,
+  RotateCcw,
+  Save,
+  Shield,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiGet, apiPost } from "@/api/client";
@@ -149,9 +159,13 @@ export function SettingsPage() {
                       <span className={llmStatus.running ? "text-green-400" : "text-red-400"}>
                         {llmStatus.running ? "Connected" : "Not reachable"}
                       </span>
-                      {" — "}{llmStatus.host}
+                      {" — "}
+                      {llmStatus.host}
                       {llmStatus.model_configured && (
-                        <>{" — "}<code className="text-primary">{llmStatus.model_configured}</code></>
+                        <>
+                          {" — "}
+                          <code className="text-primary">{llmStatus.model_configured}</code>
+                        </>
                       )}
                     </>
                   ) : (
@@ -177,8 +191,11 @@ export function SettingsPage() {
                 <CardTitle>Scraper politeness</CardTitle>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs text-muted-foreground">Min delay (s)</label>
+                    <label htmlFor="scraper-delay-min" className="text-xs text-muted-foreground">
+                      Min delay (s)
+                    </label>
                     <Input
+                      id="scraper-delay-min"
                       value={edits.scraper_delay_min ?? ""}
                       onChange={(e) => set("scraper_delay_min", e.target.value)}
                       className="mt-1"
@@ -186,8 +203,11 @@ export function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">Max delay (s)</label>
+                    <label htmlFor="scraper-delay-max" className="text-xs text-muted-foreground">
+                      Max delay (s)
+                    </label>
                     <Input
+                      id="scraper-delay-max"
                       value={edits.scraper_delay_max ?? ""}
                       onChange={(e) => set("scraper_delay_max", e.target.value)}
                       className="mt-1"
@@ -195,8 +215,11 @@ export function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">Daily budget</label>
+                    <label htmlFor="scraper-daily-budget" className="text-xs text-muted-foreground">
+                      Daily budget
+                    </label>
                     <Input
+                      id="scraper-daily-budget"
                       value={edits.scraper_daily_budget ?? ""}
                       onChange={(e) => set("scraper_daily_budget", e.target.value)}
                       className="mt-1"
@@ -214,8 +237,8 @@ export function SettingsPage() {
               <div className="min-w-0 flex-1 space-y-3">
                 <CardTitle>Scraping API (Cloudflare bypass)</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Route requests through a scraping API provider instead of direct curl_cffi
-                  to bypass Cloudflare protection.
+                  Route requests through a scraping API provider instead of direct curl_cffi to
+                  bypass Cloudflare protection.
                 </p>
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -228,8 +251,14 @@ export function SettingsPage() {
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-muted-foreground">Provider</label>
+                    <label
+                      htmlFor="scraping-api-provider"
+                      className="text-xs text-muted-foreground"
+                    >
+                      Provider
+                    </label>
                     <select
+                      id="scraping-api-provider"
                       value={edits.scraping_api_provider ?? "scrapieapi"}
                       onChange={(e) => set("scraping_api_provider", e.target.value)}
                       className="mt-1 w-full rounded border border-zinc-600 bg-zinc-800 px-2 py-1.5 text-sm text-zinc-100"
@@ -240,8 +269,11 @@ export function SettingsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">API key</label>
+                    <label htmlFor="scraping-api-key" className="text-xs text-muted-foreground">
+                      API key
+                    </label>
                     <Input
+                      id="scraping-api-key"
                       value={edits.scraping_api_key ?? ""}
                       onChange={(e) => set("scraping_api_key", e.target.value)}
                       className="mt-1"
@@ -260,8 +292,8 @@ export function SettingsPage() {
               Service
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              The backend runs as an NSSM Windows service. Restarting stops the current process
-              and spawns a fresh one — useful after config changes or if the crawler gets stuck.
+              The backend runs as an NSSM Windows service. Restarting stops the current process and
+              spawns a fresh one — useful after config changes or if the crawler gets stuck.
             </p>
             <div className="flex flex-wrap gap-2 mt-3">
               <Button
@@ -270,9 +302,14 @@ export function SettingsPage() {
                 className="border-red-500/40 text-red-400 hover:bg-red-500/10"
                 onClick={async () => {
                   try {
-                    const r = await apiPost<{ success: boolean; message: string }>("/api/restart", {});
+                    const r = await apiPost<{ success: boolean; message: string }>(
+                      "/api/restart",
+                      {},
+                    );
                     setMsg(r.message ?? "Service restarting...");
-                    setTimeout(() => { setMsg("Backend stopped — NSSM should restart it within a few seconds"); }, 2000);
+                    setTimeout(() => {
+                      setMsg("Backend stopped — NSSM should restart it within a few seconds");
+                    }, 2000);
                   } catch (e) {
                     setMsg(e instanceof Error ? e.message : "Restart failed");
                   }

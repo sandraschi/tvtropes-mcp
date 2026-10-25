@@ -24,3 +24,14 @@ repos:
         args: [--maxkb=500]
       - id: check-case-conflict
       - id: check-merge-conflict
+
+  # Fleet Biome gate: repo-root entry that delegates to scripts/pre-commit-biome.ps1.
+  # Runs ONLY via `powershell.exe -File` (never bare pwsh) per NAKED_PC_INSTALL_STANDARD.
+  - repo: local
+    hooks:
+      - id: biome-ci
+        name: biome ci (web_sota)
+        entry: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/pre-commit-biome.ps1
+        language: system
+        pass_filenames: false
+        always_run: true

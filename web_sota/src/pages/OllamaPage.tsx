@@ -56,14 +56,16 @@ export function OllamaPage() {
       const d = await apiGet<DiscoverResult>("/api/llm/discover");
       setDiscover(d);
 
-      const configuredModel = d.api_mode === "openai" ? d.configured_openai_model : d.configured_model;
+      const configuredModel =
+        d.api_mode === "openai" ? d.configured_openai_model : d.configured_model;
       setSelectedModel(configuredModel || "");
 
       const onlineProviders = d.providers.filter((p) => p.online && p.models.length > 0);
       if (onlineProviders.length > 0) {
-        const match = onlineProviders.find((p) =>
-          (d.api_mode === "ollama" && p.id === "ollama") ||
-          (d.api_mode === "openai" && p.id === "lmstudio")
+        const match = onlineProviders.find(
+          (p) =>
+            (d.api_mode === "ollama" && p.id === "ollama") ||
+            (d.api_mode === "openai" && p.id === "lmstudio"),
         );
         if (match) {
           setSelectedProvider(match.id);
@@ -90,18 +92,26 @@ export function OllamaPage() {
     if (currentProvider?.base_url) {
       setEndpointUrl(currentProvider.base_url);
     }
-  }, [selectedProvider, currentProvider]);
+    // currentProvider is derived from selectedProvider, so it alone is the dep.
+  }, [currentProvider]);
 
   const testConnection = async () => {
     setTesting(true);
     setTestResult(null);
     try {
-      const r = await apiPost<TestResult>("/api/ollama/test", { host: endpointUrl, model: selectedModel });
+      const r = await apiPost<TestResult>("/api/ollama/test", {
+        host: endpointUrl,
+        model: selectedModel,
+      });
       setTestResult(r);
     } catch (e) {
       setTestResult({
-        success: false, host: endpointUrl, reachable: false,
-        model_found: false, models: [], error: String(e),
+        success: false,
+        host: endpointUrl,
+        reachable: false,
+        model_found: false,
+        models: [],
+        error: String(e),
       });
     }
     setTesting(false);
@@ -157,13 +167,19 @@ export function OllamaPage() {
             <p className="text-sm text-muted-foreground truncate">
               {currentProvider?.label ?? selectedProvider} — {endpointUrl || "no endpoint"}
               {!loading && !providerOnline && currentProvider?.error && (
-                <> <span className="text-amber-400">({currentProvider.error})</span></>
+                <>
+                  {" "}
+                  <span className="text-amber-400">({currentProvider.error})</span>
+                </>
               )}
             </p>
           </div>
           <Button
-            size="sm" variant="ghost" className="ml-auto shrink-0"
-            onClick={fetchAll} disabled={loading}
+            size="sm"
+            variant="ghost"
+            className="ml-auto shrink-0"
+            onClick={fetchAll}
+            disabled={loading}
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
@@ -175,27 +191,33 @@ export function OllamaPage() {
         <CardTitle>Provider</CardTitle>
         <div className="space-y-3 mt-3">
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">
+            <label htmlFor="provider-select" className="text-xs text-muted-foreground block mb-1">
               Local LLM provider
             </label>
             <Select
+              id="provider-select"
               value={selectedProvider}
               onChange={(e) => setSelectedProvider(e.target.value)}
               data-testid="provider-select"
             >
               <option value="ollama">
-                Ollama {currentProviders.find((p) => p.id === "ollama")?.online ? "(online)" : "(offline)"}
+                Ollama{" "}
+                {currentProviders.find((p) => p.id === "ollama")?.online ? "(online)" : "(offline)"}
               </option>
               <option value="lmstudio">
-                LM Studio {currentProviders.find((p) => p.id === "lmstudio")?.online ? "(online)" : "(offline)"}
+                LM Studio{" "}
+                {currentProviders.find((p) => p.id === "lmstudio")?.online
+                  ? "(online)"
+                  : "(offline)"}
               </option>
             </Select>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">
+            <label htmlFor="endpoint-input" className="text-xs text-muted-foreground block mb-1">
               Endpoint URL
             </label>
             <Input
+              id="endpoint-input"
               value={endpointUrl}
               onChange={(e) => setEndpointUrl(e.target.value)}
               placeholder="http://localhost:11434"
@@ -214,33 +236,39 @@ export function OllamaPage() {
         <div className="mt-3">
           {providerModels.length > 0 ? (
             <>
-              <label className="text-xs text-muted-foreground block mb-1">
+              <label htmlFor="model-select" className="text-xs text-muted-foreground block mb-1">
                 Select model ({providerModels.length} available)
               </label>
               <Select
+                id="model-select"
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
                 data-testid="model-select"
               >
                 <option value="">— Select a model —</option>
                 {providerModels.map((m) => (
-                  <option key={m} value={m}>{m}</option>
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
                 ))}
               </Select>
             </>
           ) : (
             <>
-              <label className="text-xs text-muted-foreground block mb-1">
+              <label htmlFor="model-input" className="text-xs text-muted-foreground block mb-1">
                 Model name
               </label>
               <Input
+                id="model-input"
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
                 placeholder={selectedProvider === "lmstudio" ? "qwen/qwen3.6-27b" : "qwen2.5:27b"}
                 data-testid="model-input"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {providerOnline ? "Models could not be fetched." : "Provider offline — enter model name manually."}
+                {providerOnline
+                  ? "Models could not be fetched."
+                  : "Provider offline — enter model name manually."}
               </p>
             </>
           )}
@@ -275,7 +303,11 @@ export function OllamaPage() {
         </div>
       )}
 
-      {saveMsg && <div className="text-sm text-primary" data-testid="save-msg">{saveMsg}</div>}
+      {saveMsg && (
+        <div className="text-sm text-primary" data-testid="save-msg">
+          {saveMsg}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex gap-2">
@@ -300,20 +332,17 @@ export function OllamaPage() {
       <Card>
         <CardTitle>How this works</CardTitle>
         <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc pl-5">
-          <li>
-            Provider and model are auto-detected on page load by probing local endpoints.
-          </li>
+          <li>Provider and model are auto-detected on page load by probing local endpoints.</li>
           <li>
             Ollama uses native <code className="text-primary">/api/tags</code>; LM Studio uses{" "}
             <code className="text-primary">/v1/models</code> (OpenAI-compatible API).
           </li>
           <li>
-            Extraction prompts call the selected model to convert cached HTML into structured
-            tropes and examples.
+            Extraction prompts call the selected model to convert cached HTML into structured tropes
+            and examples.
           </li>
           <li>
-            Embeddings (semantic search) use{" "}
-            <code className="text-primary">nomic-embed-text</code>.
+            Embeddings (semantic search) use <code className="text-primary">nomic-embed-text</code>.
           </li>
           <li>
             Settings are saved to <code className="text-primary">data/settings.json</code> and

@@ -1,0 +1,3 @@
+# Normalize line endings to LF on commit; check out LF everywhere.
+# Stops core.autocrlf from reintroducing CRLF that biome/ruff then flag.
+* text=auto eol=lf

@@ -8,6 +8,7 @@ from scraper.db import get_crawl_stats, queue_urls
 
 # ─── Health & Status ─────────────────────────────────────────────
 
+
 class TestHealth:
     def test_health(self, client: TestClient) -> None:
         r = client.get("/api/health")
@@ -36,9 +37,10 @@ class TestHealth:
         r = client.get("/api/tools")
         assert r.status_code == 200
         data = r.json()
-        assert len(data["tools"]) == 12
+        assert len(data["tools"]) == 16
         assert "trope_search" in data["tools"]
         assert "calibre_status" in data["tools"]
+        assert "works_in_namespace" in data["tools"]
 
     def test_status(self, client: TestClient) -> None:
         r = client.get("/api/status")
@@ -59,6 +61,7 @@ class TestHealth:
 
 
 # ─── MCP Tool Proxy ──────────────────────────────────────────────
+
 
 class TestTropeSearch:
     def test_search_found(self, client: TestClient) -> None:
@@ -143,20 +146,26 @@ class TestTropeExamples:
         assert data["count"] >= 2
 
     def test_examples_filtered(self, client: TestClient) -> None:
-        r = client.post("/api/mcp/tool", json={
-            "name": "trope_examples",
-            "args": {"trope_id": "Main/ChekhovsGun", "namespace": "Film", "limit": 10},
-        })
+        r = client.post(
+            "/api/mcp/tool",
+            json={
+                "name": "trope_examples",
+                "args": {"trope_id": "Main/ChekhovsGun", "namespace": "Film", "limit": 10},
+            },
+        )
         assert r.status_code == 200
         data = r.json()
         assert data["count"] >= 1
         assert all(e["work_ns"] == "Film" for e in data["examples"])
 
     def test_examples_no_results(self, client: TestClient) -> None:
-        r = client.post("/api/mcp/tool", json={
-            "name": "trope_examples",
-            "args": {"trope_id": "Main/Nonexistent", "limit": 5},
-        })
+        r = client.post(
+            "/api/mcp/tool",
+            json={
+                "name": "trope_examples",
+                "args": {"trope_id": "Main/Nonexistent", "limit": 5},
+            },
+        )
         assert r.status_code == 200
         assert r.json()["count"] == 0
 
@@ -233,6 +242,7 @@ class TestMCPErrors:
 
 # ─── Scraper API ─────────────────────────────────────────────────
 
+
 class TestScraperAPI:
     def test_scraper_status_endpoint(self, client: TestClient) -> None:
         r = client.get("/api/scraper/status")
@@ -255,6 +265,7 @@ class TestScraperAPI:
 
 # ─── Full Pipeline: Queue → Crawl → Extract → Query ──────────────
 
+
 class TestScraperPipeline:
     """End-to-end pipeline test: seed URLs → mock crawl → mark extracted → query.
 
@@ -276,10 +287,16 @@ class TestScraperPipeline:
 
         # Phase 1: Seed queue
         urls = [
-            {"url": "https://tvtropes.org/pmwiki/pmwiki.php/Main/ChekhovsGun",
-             "namespace": "Main", "page_name": "ChekhovsGun"},
-            {"url": "https://tvtropes.org/pmwiki/pmwiki.php/Main/RedHerring",
-             "namespace": "Main", "page_name": "RedHerring"},
+            {
+                "url": "https://tvtropes.org/pmwiki/pmwiki.php/Main/ChekhovsGun",
+                "namespace": "Main",
+                "page_name": "ChekhovsGun",
+            },
+            {
+                "url": "https://tvtropes.org/pmwiki/pmwiki.php/Main/RedHerring",
+                "namespace": "Main",
+                "page_name": "RedHerring",
+            },
         ]
         added = queue_urls(db_path, urls)
         assert added == 2
@@ -302,7 +319,9 @@ class TestScraperPipeline:
 
         # Phase 3: Extract (simulate Ollama output)
         upsert_trope(
-            db_path, "Main", "ChekhovsGun",
+            db_path,
+            "Main",
+            "ChekhovsGun",
             title="Chekhov's Gun",
             description="A dramatic principle.",
             laconic="Every element must be necessary.",

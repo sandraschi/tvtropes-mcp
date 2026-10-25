@@ -47,37 +47,60 @@ def db_path(temp_dir: str) -> str:
 def _seed_db(db_path: str) -> None:
     """Populate a test database with realistic seed data."""
     upsert_trope(
-        db_path, "Main", "ChekhovsGun",
+        db_path,
+        "Main",
+        "ChekhovsGun",
         title="Chekhov's Gun",
         description="A dramatic principle where an element introduced early becomes critically significant later.",
         laconic="Every element in a story must be necessary.",
     )
     upsert_trope(
-        db_path, "Main", "RedHerring", title="Red Herring",
+        db_path,
+        "Main",
+        "RedHerring",
+        title="Red Herring",
         description="A misleading clue designed to distract the audience.",
     )
     upsert_trope(
-        db_path, "Main", "AntiHero", title="Anti-Hero",
+        db_path,
+        "Main",
+        "AntiHero",
+        title="Anti-Hero",
         description="A protagonist who lacks conventional heroic qualities.",
     )
     upsert_trope(
-        db_path, "Main", "FiveManBand", title="Five-Man Band",
+        db_path,
+        "Main",
+        "FiveManBand",
+        title="Five-Man Band",
         description="A team of five characters whose archetypes form a narrative unit.",
     )
     upsert_trope(
-        db_path, "Main", "MacGuffin", title="MacGuffin",
+        db_path,
+        "Main",
+        "MacGuffin",
+        title="MacGuffin",
         description="A plot device that drives the story but is ultimately unimportant.",
     )
     upsert_trope(
-        db_path, "Main", "Foreshadowing", title="Foreshadowing",
+        db_path,
+        "Main",
+        "Foreshadowing",
+        title="Foreshadowing",
         description="A hint of what is to come later.",
     )
     upsert_trope(
-        db_path, "Film", "Casablanca", title="Casablanca",
+        db_path,
+        "Film",
+        "Casablanca",
+        title="Casablanca",
         description="An American romantic drama film from 1942.",
     )
     upsert_trope(
-        db_path, "Series", "BreakingBad", title="Breaking Bad",
+        db_path,
+        "Series",
+        "BreakingBad",
+        title="Breaking Bad",
         description="An American crime drama television series.",
     )
 
@@ -106,6 +129,7 @@ def client(temp_dir: str, monkeypatch: pytest.MonkeyPatch) -> Generator[TestClie
     """
     app_db_path = os.path.join(temp_dir, "tvtropes.db")
     monkeypatch.setenv("TVTROPES_MCP_DATA_DIR", temp_dir)
+    monkeypatch.setenv("TVTROPES_MCP_AUTOSTART", "0")
 
     for mod in list(sys.modules.keys()):
         if mod.startswith("tvtropes_mcp") or mod.startswith("scraper"):

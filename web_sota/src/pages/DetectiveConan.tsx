@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
 import { Loader2, Star } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { apiMcpTool } from "@/api/client";
 import { PageHero } from "@/components/layout/PageHero";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -21,9 +21,10 @@ export function DetectiveConan() {
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await apiMcpTool<{ success: boolean; tropes: { trope_ns: string; trope_name: string; title: string }[] }>(
-        "work_tropes", { work_id: "Anime/DetectiveConan" }
-      );
+      const result = await apiMcpTool<{
+        success: boolean;
+        tropes: { trope_ns: string; trope_name: string; title: string }[];
+      }>("work_tropes", { work_id: "Anime/DetectiveConan" });
       if (!result.success || !result.tropes) {
         setTropes([]);
         setLoading(false);
@@ -32,9 +33,9 @@ export function DetectiveConan() {
       const names = result.tropes.slice(0, 30);
       const details: TropeInfo[] = [];
       for (const t of names) {
-        const full = await apiMcpTool<{ success: boolean; trope: TropeInfo | null }>(
-          "trope_get", { trope_id: `${t.trope_ns}/${t.trope_name}` }
-        );
+        const full = await apiMcpTool<{ success: boolean; trope: TropeInfo | null }>("trope_get", {
+          trope_id: `${t.trope_ns}/${t.trope_name}`,
+        });
         if (full.success && full.trope) details.push(full.trope);
       }
       setTropes(details);
@@ -44,7 +45,9 @@ export function DetectiveConan() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => {
+    fetch();
+  }, [fetch]);
 
   return (
     <div className="space-y-6">
@@ -61,12 +64,15 @@ export function DetectiveConan() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm">{error}</div>
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm">
+          {error}
+        </div>
       )}
 
       {!loading && !error && tropes.length === 0 && (
         <div className="rounded-lg border border-muted px-4 py-6 text-center text-muted-foreground">
-          No tropes found for Detective Conan in the local mirror. The scraper may not have reached it yet.
+          No tropes found for Detective Conan in the local mirror. The scraper may not have reached
+          it yet.
         </div>
       )}
 

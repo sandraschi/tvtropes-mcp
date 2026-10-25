@@ -45,6 +45,17 @@ const STATUS_COLORS: Record<string, string> = {
   skipped: "text-muted-foreground",
 };
 
+/** Renders extractor-sanitized HTML. The only dangerouslySetInnerHTML in the app. */
+function SanitizedHtml({ html }: { html: string }) {
+  return (
+    <div
+      className="prose prose-xs prose-invert max-w-none [&_a]:text-primary [&_a]:hover:underline"
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: extractor-sanitized same-origin render
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
 export function PagesPage() {
   const [data, setData] = useState<PagesResp | null>(null);
   const [loading, setLoading] = useState(true);
@@ -142,6 +153,7 @@ export function PagesPage() {
           )}
           {data?.pages.map((p) => (
             <button
+              type="button"
               key={p.id}
               onClick={() => openPage(p)}
               className={cn(
@@ -220,10 +232,7 @@ export function PagesPage() {
               </div>
               <div className="max-h-[60vh] overflow-y-auto">
                 {viewMode === "html" ? (
-                  <div
-                    className="prose prose-xs prose-invert max-w-none [&_a]:text-primary [&_a]:hover:underline"
-                    dangerouslySetInnerHTML={{ __html: content.main_html }}
-                  />
+                  <SanitizedHtml html={content.main_html} />
                 ) : (
                   <pre className="text-xs whitespace-pre-wrap font-sans leading-relaxed">
                     {content.text}

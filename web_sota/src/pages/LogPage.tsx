@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+// biome-ignore-all lint/suspicious/noArrayIndexKey: append-only poll list, never reordered
 import { Download, Pause, Play, RefreshCw, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiGet } from "@/api/client";
-import { Button } from "@/components/ui/button";
 import { PageHero } from "@/components/layout/PageHero";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type LogEntry = { ts: string; level: string; name: string; message: string };
@@ -32,7 +33,9 @@ export function LogPage() {
       const data = await apiGet<LogResp>(`/api/log?${params}`);
       setEntries(data.entries);
       setTotal(data.total);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [level]);
 
   useEffect(() => {
@@ -43,6 +46,7 @@ export function LogPage() {
     return () => clearInterval(interval);
   }, [fetchLogs, paused]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll on entries change without reading it.
   useEffect(() => {
     if (!paused) endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [entries, paused]);
@@ -53,7 +57,12 @@ export function LogPage() {
       const csvRows = [
         ["timestamp", "level", "module", "message"].join(","),
         ...data.entries.map((e) =>
-          [e.ts, e.level.toUpperCase(), (e.name ?? "").split(".").slice(-1)[0] ?? "", `"${(e.message ?? "").replace(/"/g, '""')}"`].join(","),
+          [
+            e.ts,
+            e.level.toUpperCase(),
+            (e.name ?? "").split(".").slice(-1)[0] ?? "",
+            `"${(e.message ?? "").replace(/"/g, '""')}"`,
+          ].join(","),
         ),
       ];
       const text = csvRows.join("\n");
@@ -64,7 +73,9 @@ export function LogPage() {
       a.download = `tvtropes-log-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   const togglePause = () => setPaused(!paused);
@@ -132,7 +143,9 @@ export function LogPage() {
         {entries.map((e, i) => (
           <div key={i} className="flex gap-2 hover:bg-muted/20 rounded-sm">
             <span className="text-muted-foreground shrink-0 w-20">{e.ts}</span>
-            <span className={cn("uppercase w-10 shrink-0 font-medium", LEVEL_COLORS[e.level] ?? "")}>
+            <span
+              className={cn("uppercase w-10 shrink-0 font-medium", LEVEL_COLORS[e.level] ?? "")}
+            >
               {e.level}
             </span>
             <span className="text-muted-foreground shrink-0 w-20 truncate">

@@ -24,9 +24,13 @@ export function WorkBrowser() {
   useEffect(() => {
     (async () => {
       try {
-        const r = await apiMcpTool<{ success: boolean; namespaces: NamespaceInfo[] }>("namespace_list");
+        const r = await apiMcpTool<{ success: boolean; namespaces: NamespaceInfo[] }>(
+          "namespace_list",
+        );
         if (r.success) setNamespaces(r.namespaces);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       setLoading(false);
     })();
   }, []);
@@ -36,9 +40,14 @@ export function WorkBrowser() {
     setLevel("works");
     setWorksLoading(true);
     try {
-      const r = await apiMcpTool<{ success: boolean; works: WorkItem[] }>("works_in_namespace", { namespace: ns, limit: 100 });
+      const r = await apiMcpTool<{ success: boolean; works: WorkItem[] }>("works_in_namespace", {
+        namespace: ns,
+        limit: 100,
+      });
       if (r.success) setWorks(r.works);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setWorksLoading(false);
   }, []);
 
@@ -47,15 +56,24 @@ export function WorkBrowser() {
     setLevel("tropes");
     setTropesLoading(true);
     try {
-      const r = await apiMcpTool<{ success: boolean; tropes: WorkTrope[] }>("work_tropes", { work_id: `${ns}/${name}` });
+      const r = await apiMcpTool<{ success: boolean; tropes: WorkTrope[] }>("work_tropes", {
+        work_id: `${ns}/${name}`,
+      });
       if (r.success) setTropes(r.tropes);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setTropesLoading(false);
   }, []);
 
   const goBack = useCallback(() => {
-    if (level === "works") { setLevel("namespaces"); setSelectedNs(""); }
-    else if (level === "tropes") { setLevel("works"); setSelectedWork(""); }
+    if (level === "works") {
+      setLevel("namespaces");
+      setSelectedNs("");
+    } else if (level === "tropes") {
+      setLevel("works");
+      setSelectedWork("");
+    }
   }, [level]);
 
   if (loading) {
@@ -79,7 +97,11 @@ export function WorkBrowser() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {namespaces.map((ns) => (
             <Card key={ns.namespace}>
-              <button className="w-full text-left" onClick={() => openNamespace(ns.namespace)}>
+              <button
+                type="button"
+                className="w-full text-left"
+                onClick={() => openNamespace(ns.namespace)}
+              >
                 <div className="flex items-center gap-2">
                   <BookOpen className="h-5 w-5 text-primary shrink-0" />
                   <div>
@@ -96,18 +118,28 @@ export function WorkBrowser() {
       {level === "works" && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={goBack}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+            <Button variant="ghost" size="sm" onClick={goBack}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back
+            </Button>
             <span className="text-sm text-muted-foreground">{selectedNs}</span>
           </div>
           {worksLoading ? (
-            <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
           ) : works.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">No works extracted yet in this namespace.</p>
+            <p className="text-sm text-muted-foreground py-4">
+              No works extracted yet in this namespace.
+            </p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {works.map((w) => (
                 <Card key={w.work_name}>
-                  <button className="w-full text-left" onClick={() => openWork(w.namespace, w.work_name)}>
+                  <button
+                    type="button"
+                    className="w-full text-left"
+                    onClick={() => openWork(w.namespace, w.work_name)}
+                  >
                     <div className="flex items-center gap-2">
                       <Globe className="h-4 w-4 text-primary shrink-0" />
                       <CardTitle className="text-sm">{w.work_name}</CardTitle>
@@ -123,11 +155,17 @@ export function WorkBrowser() {
       {level === "tropes" && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={goBack}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
-            <span className="text-sm text-muted-foreground">{selectedNs}/{selectedWork}</span>
+            <Button variant="ghost" size="sm" onClick={goBack}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {selectedNs}/{selectedWork}
+            </span>
           </div>
           {tropesLoading ? (
-            <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
           ) : tropes.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">No tropes found for this work.</p>
           ) : (
@@ -138,7 +176,9 @@ export function WorkBrowser() {
                     <Layers className="h-4 w-4 text-primary shrink-0" />
                     <div>
                       <CardTitle className="text-sm">{t.title || t.trope_name}</CardTitle>
-                      <p className="text-xs text-muted-foreground">{t.trope_ns}/{t.trope_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t.trope_ns}/{t.trope_name}
+                      </p>
                     </div>
                   </div>
                 </Card>

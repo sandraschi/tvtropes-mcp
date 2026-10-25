@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/noArrayIndexKey: static per-response examples, never reordered
 import { BookOpen, Loader2, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -139,7 +140,12 @@ export function TropeSearch() {
             </p>
           )}
           {results.map((r) => (
-            <button key={r.id} onClick={() => openTrope(r.id)} className="w-full text-left">
+            <button
+              type="button"
+              key={r.id}
+              onClick={() => openTrope(r.id)}
+              className="w-full text-left"
+            >
               <Card className="hover:border-primary/40 transition-colors cursor-pointer">
                 <div className="flex items-start gap-2">
                   <BookOpen className="h-5 w-5 text-primary shrink-0 mt-0.5" />
@@ -188,6 +194,7 @@ export function TropeSearch() {
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {selected.sub_tropes.map((t) => (
                     <button
+                      type="button"
                       key={`${t.namespace}/${t.page_name}`}
                       onClick={() => openTrope(`${t.namespace}/${t.page_name}`)}
                       className="text-xs bg-muted/50 px-2 py-1 rounded hover:bg-primary/20 transition-colors"
@@ -205,6 +212,7 @@ export function TropeSearch() {
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {selected.super_tropes.map((t) => (
                     <button
+                      type="button"
                       key={`${t.namespace}/${t.page_name}`}
                       onClick={() => openTrope(`${t.namespace}/${t.page_name}`)}
                       className="text-xs bg-muted/50 px-2 py-1 rounded hover:bg-primary/20 transition-colors"

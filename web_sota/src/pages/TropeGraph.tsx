@@ -73,7 +73,10 @@ export function TropeGraph() {
   const allRelations = graph ? REL_KEYS.filter((key) => graph[key].length > 0) : [];
 
   const relEntries = graph
-    ? (allRelations.map((key) => ({ key, items: graph[key] as { namespace: string; page_name: string }[] })))
+    ? allRelations.map((key) => ({
+        key,
+        items: graph[key] as { namespace: string; page_name: string }[],
+      }))
     : [];
 
   return (
@@ -102,6 +105,7 @@ export function TropeGraph() {
         <div className="flex flex-wrap gap-1.5">
           {history.map((h) => (
             <button
+              type="button"
               key={h}
               onClick={() => {
                 setTropeId(h);
@@ -139,6 +143,7 @@ export function TropeGraph() {
                 <div className="flex flex-wrap gap-1.5">
                   {items.map((t) => (
                     <button
+                      type="button"
                       key={`${t.namespace}/${t.page_name}`}
                       onClick={() => navigate(t)}
                       className="text-xs bg-background/60 px-2 py-1 rounded hover:bg-primary/20 transition-colors border border-border/40"
