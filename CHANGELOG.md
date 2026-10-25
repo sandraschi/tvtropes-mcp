@@ -2,6 +2,50 @@
 
 All notable changes to tvtropes-mcp are documented here.
 
+## [Unreleased] — 2026-10-25 (assfix)
+
+### Added
+- **`vector_status` tool (17th)** — LanceDB vector count plus rebuild job
+  states; read-only half of the RAG reindex flow for agents
+- **`POST /api/vector/rebuild` is now a job queue** — returns `job_id`
+  immediately, runs in background; poll `GET /api/vector/rebuild/status`
+  (RAG_OPERATIONS_STANDARD §2.1, was a blocking hours-long request)
+- **`GET /api/capabilities`** — standard fleet capability shape
+- **`GET /api/llm/providers`, `/api/llm/models`, `/api/llm/onboarding`** —
+  LLM registry views over `/api/llm/discover` for Settings/Ollama pages
+- **Docs quartet + onboarding**: `docs/CONFIGURATION.md`,
+  `docs/DEVELOPMENT.md`, `docs/TOOLS.md`, `docs/TROUBLESHOOTING.md`,
+  `docs/ONBOARDING.md`; `.cursorrules` + `.windsurfrules` session context
+- **XSS hardening in `content_extractor`** — strips `on*` handlers,
+  `javascript:` URLs, frames/objects (PagesPage renders via
+  `dangerouslySetInnerHTML`); covered by `tests/test_content_extractor.py`
+
+### Changed
+- **CORS locked down** — explicit origins + LAN/Tailscale regex instead of
+  `allow_origins=["*"]`
+- **`POST /api/shutdown` orderly exit** — responds 200 then `os._exit(0)`
+  ~500 ms later (was `get_event_loop().stop()`)
+- **Tool count 17 everywhere** — manifest, glama, README, AGENTS, llms*,
+  MCP_TOOLS, TOOLS, SKILL, Dashboard, `/api/tools`, e2e assertion
+- **Biome gate actually runs** — fixed schema-invalid `biome.json`
+  (`recommended: true`, `tailwindDirectives`), added repo-root
+  `scripts/pre-commit-biome.ps1` hook with absolute-path tool resolution;
+  fixed all resulting lint findings (a11y labels/buttons, exhaustive-deps,
+  stable keys, import order, formatter normalization to LF)
+- **`.gitattributes` forces LF** — stops CRLF reintroduction from
+  `core.autocrlf` checkouts
+
+### Fixed
+- **3 e2e failures** — app no longer auto-starts the crawler on import in
+  tests (`TVTROPES_MCP_AUTOSTART=0` gate in `tests/conftest.py`); tools
+  assertion updated to the real registered count
+- **18 mypy errors** blocking every commit — `ctx: Context | None`,
+  `Metric` instead of removed `Row(label=, value=)`, `str()` coerces for
+  BeautifulSoup attrs, semaphore assert, no function-attribute rate limit,
+  `isinstance TextContent` guard, required `db_path` in query wrappers
+- **`native/resources/.env.example` was referenced but missing** — copied
+  from root `.env.example` so the Tauri bundle resolves
+
 ## [Unreleased] — 2026-08-24
 
 ### Added

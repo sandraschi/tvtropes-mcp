@@ -605,6 +605,50 @@ async def api_llm_discover() -> dict[str, Any]:
     }
 
 
+@router.get("/llm/providers")
+async def api_llm_providers() -> dict[str, Any]:
+    """Provider registry view over /llm/discover (fleet LLM Settings SOTA)."""
+    disc = await api_llm_discover()
+    return {
+        "providers": [
+            {"id": p["id"], "label": p["label"], "base_url": p["base_url"], "online": p["online"]}
+            for p in disc["providers"]
+        ],
+        "api_mode": disc["api_mode"],
+    }
+
+
+@router.get("/llm/models")
+async def api_llm_models(provider: str = "") -> dict[str, Any]:
+    """Model list, optionally filtered by provider id."""
+    disc = await api_llm_discover()
+    providers = disc["providers"]
+    if provider:
+        providers = [p for p in providers if p["id"] == provider]
+    return {
+        "models": [{"provider": p["id"], "model": m} for p in providers for m in p["models"]],
+        "provider": provider or "all",
+    }
+
+
+@router.get("/llm/onboarding")
+async def api_llm_onboarding() -> dict[str, Any]:
+    """Onboarding state for the Settings/Ollama pages: what to install, what's live."""
+    disc = await api_llm_discover()
+    online = [p for p in disc["providers"] if p.get("online")]
+    return {
+        "configured": bool(online),
+        "api_mode": disc["api_mode"],
+        "online_providers": [p["id"] for p in online],
+        "steps": [
+            "Install Ollama (https://ollama.me) or LM Studio, or point TVTROPES_MCP_OLLAMA_HOST at a reachable OpenAI-compatible endpoint.",
+            "Pull an extraction model (ollama pull qwen2.5:27b) and an embedding model (ollama pull nomic-embed-text).",
+            "Verify on the Ollama page (Test connection), then crawl a starter page from the Dashboard.",
+        ],
+        "docs": "docs/ONBOARDING.md",
+    }
+
+
 @router.get("/bridge")
 async def api_bridge() -> dict[str, Any]:
     """Fleet bridge metadata - tells other MCP webapps how to deep-link here.
@@ -842,30 +886,93 @@ async def api_vector_count() -> dict[str, Any]:
     return {"count": count_vectors(_settings.resolved_data_dir())}
 
 
-@router.post("/vector/rebuild")
-async def api_vector_rebuild() -> dict[str, Any]:
-    """Rebuild the LanceDB vector index from all tropes in the SQLite DB."""
+_VECTOR_JOBS: dict[str, dict[str, Any]] = {}
+
+
+async def _run_vector_rebuild(job_id: str) -> None:
+    """Background worker for a vector rebuild job (hours-long: never block a request)."""
+    import time
+
     from scraper.db import get_conn
     from tvtropes_mcp.vector_store import upsert_trope_embedding
 
+    job = _VECTOR_JOBS[job_id]
+    job["status"] = "running"
     embedded = 0
     errors = 0
-    with get_conn(_db_path) as conn:
-        rows = conn.execute("SELECT namespace, page_name, title, description, laconic FROM tropes").fetchall()
-    for row in rows:
-        trope = dict(row)
-        ok = await upsert_trope_embedding(
-            _settings.resolved_data_dir(),
-            trope,
-            ollama_host=_settings.ollama_host,
-            model=_settings.openai_embedding_model if _settings.api_mode == "openai" else "nomic-embed-text",
-            api_mode=_settings.api_mode,
-        )
-        if ok:
-            embedded += 1
-        else:
-            errors += 1
-    return {"success": True, "embedded": embedded, "errors": errors, "total": embedded + errors}
+    try:
+        with get_conn(_db_path) as conn:
+            rows = conn.execute("SELECT namespace, page_name, title, description, laconic FROM tropes").fetchall()
+        for row in rows:
+            trope = dict(row)
+            ok = await upsert_trope_embedding(
+                _settings.resolved_data_dir(),
+                trope,
+                ollama_host=_settings.ollama_host,
+                model=_settings.openai_embedding_model if _settings.api_mode == "openai" else "nomic-embed-text",
+                api_mode=_settings.api_mode,
+            )
+            if ok:
+                embedded += 1
+            else:
+                errors += 1
+        job["status"] = "done"
+        job["result"] = {"embedded": embedded, "errors": errors, "total": embedded + errors}
+    except Exception as e:
+        job["status"] = "failed"
+        job["error"] = str(e)
+        log.error(f"Vector rebuild job {job_id} failed: {e}", exc_info=True)
+    finally:
+        job["finished"] = time.time()
+
+
+def _public_job(job_id: str) -> dict[str, Any]:
+    """JSON-safe view of a rebuild job (task handles are never serialized)."""
+    job = _VECTOR_JOBS[job_id]
+    return {
+        "job_id": job["job_id"],
+        "status": job["status"],
+        "started": job["started"],
+        "finished": job["finished"],
+        "result": job["result"],
+        "error": job["error"],
+    }
+
+
+@router.post("/vector/rebuild")
+async def api_vector_rebuild() -> dict[str, Any]:
+    """Queue a LanceDB rebuild as a background job; poll GET /vector/rebuild/status.
+
+    RAG_OPERATIONS_STANDARD §2.1: the sweep never blocks the request — the
+    client AbortSignal/timeout would otherwise kill it mid-write.
+    """
+    import asyncio
+    import time
+    import uuid
+
+    job_id = uuid.uuid4().hex[:12]
+    _VECTOR_JOBS[job_id] = {
+        "job_id": job_id,
+        "status": "queued",
+        "started": time.time(),
+        "finished": None,
+        "result": None,
+        "error": None,
+    }
+    task = asyncio.create_task(_run_vector_rebuild(job_id))
+    _VECTOR_JOBS[job_id]["task"] = task
+    task.add_done_callback(lambda _t: _VECTOR_JOBS[job_id].pop("task", None))
+    return {"success": True, "job_id": job_id, "status": "queued"}
+
+
+@router.get("/vector/rebuild/status")
+async def api_vector_rebuild_status(job_id: str = "") -> dict[str, Any]:
+    """Poll a rebuild job (or list all jobs when job_id is omitted)."""
+    if job_id:
+        if job_id not in _VECTOR_JOBS:
+            return {"success": False, "error": f"Unknown job_id: {job_id!r}"}
+        return {"success": True, "job": _public_job(job_id)}
+    return {"success": True, "jobs": [_public_job(j) for j in _VECTOR_JOBS]}
 
 
 @router.get("/skills")
@@ -934,6 +1041,7 @@ async def api_tools() -> dict[str, Any]:
             "web_search",
             "show_status_card",
             "trope_agentic_assist",
+            "vector_status",
         ],
         "mcp_http_path": "/mcp",
         "prompts": [

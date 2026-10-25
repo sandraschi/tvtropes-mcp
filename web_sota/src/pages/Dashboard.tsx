@@ -464,7 +464,7 @@ export function Dashboard() {
 
       <div>
         <h2 className="text-lg font-semibold tracking-tight">MCP Tools</h2>
-        <p className="text-muted-foreground text-sm mt-1">13 tools · 3 curated pages</p>
+        <p className="text-muted-foreground text-sm mt-1">17 tools · 3 curated pages</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

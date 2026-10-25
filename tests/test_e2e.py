@@ -37,10 +37,11 @@ class TestHealth:
         r = client.get("/api/tools")
         assert r.status_code == 200
         data = r.json()
-        assert len(data["tools"]) == 16
+        assert len(data["tools"]) == 17
         assert "trope_search" in data["tools"]
         assert "calibre_status" in data["tools"]
         assert "works_in_namespace" in data["tools"]
+        assert "vector_status" in data["tools"]
 
     def test_status(self, client: TestClient) -> None:
         r = client.get("/api/status")
