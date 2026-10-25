@@ -47,10 +47,12 @@ def extract_main_content(html: str) -> str:
     # the dashboard, so strip scriptable remnants that tag removal misses
     # (event-handler attributes, javascript: URLs, embedded frames/objects).
     for tag in soup.find_all(True):
-        for attr in [a for a in tag.attrs if a.lower().startswith("on")]:
+        # tag.attrs may be None (not {}) for some nodes - guard everything.
+        attrs = tag.attrs or {}
+        for attr in [a for a in attrs if a.lower().startswith("on")]:
             del tag.attrs[attr]
         for attr in ("href", "src", "action"):
-            val = tag.attrs.get(attr)
+            val = attrs.get(attr)
             if isinstance(val, str) and val.strip().lower().startswith("javascript:"):
                 del tag.attrs[attr]
         if tag.name in ("iframe", "object", "embed", "form"):

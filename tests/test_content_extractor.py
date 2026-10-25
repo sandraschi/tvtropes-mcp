@@ -26,3 +26,14 @@ def test_javascript_urls_and_frames_removed() -> None:
     out = extract_main_content(html)
     assert "javascript:" not in out
     assert "<iframe" not in out
+
+
+def test_none_attrs_do_not_crash() -> None:
+    # Real crawled pages contain tags whose .attrs is None (not {}).
+    # Iterating None crashed extract_main_content -> HTTP 500 on /pages/<id>/content.
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup("<html><body><div><p>Hi</p></div></body></html>", "html.parser")
+    soup.div.attrs = None  # type: ignore[assignment]
+    out = extract_main_content(str(soup))
+    assert "Hi" in out
