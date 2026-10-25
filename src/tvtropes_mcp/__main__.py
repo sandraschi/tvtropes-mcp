@@ -142,7 +142,7 @@ def _run_scraper(*, debug: bool) -> None:
                 try:
                     extractor = Extractor(db_path, config)
                     try:
-                        result = asyncio.run(extractor.run_pass(batch_size=5))
+                        result = asyncio.run(extractor.run_pass())
                         if result:
                             logging.getLogger("scraper").info(f"Extraction pass: {result.get('extracted', 0)} pages")
                     finally:

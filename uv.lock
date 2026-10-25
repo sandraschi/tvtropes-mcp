@@ -1424,6 +1424,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pyright"
+version = "1.1.414"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nodeenv" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e1/1b/244c7b710031ada80f27e579ec20d28a2285dfc318fed0339866b1047f12/pyright-1.1.414.tar.gz", hash = "sha256:523c0a97c60da6333234955c277730c9cf4f5bd6d5399e7b7d2b0fc5d3599524", size = 4154638, upload-time = "2026-09-10T12:26:53.181Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/ba/18b6e682ead424ad24bcc134339ae5d1b931cd9ae260540592a058a91279/pyright-1.1.414-py3-none-any.whl", hash = "sha256:2a6b4b3298c9eec174c5ed83bd338de6eee82df2992f3e1930e6199d381be36f", size = 6225049, upload-time = "2026-09-10T12:26:51.427Z" },
+]
+
+[[package]]
 name = "pytest"
 version = "9.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1845,6 +1858,7 @@ dependencies = [
 [package.optional-dependencies]
 dev = [
     { name = "pre-commit" },
+    { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -1853,6 +1867,7 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "pre-commit" },
+    { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -1873,6 +1888,7 @@ requires-dist = [
     { name = "pyarrow", specifier = ">=18.0.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
+    { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
     { name = "pyyaml", specifier = ">=6.0" },
@@ -1885,6 +1901,7 @@ provides-extras = ["dev"]
 [package.metadata.requires-dev]
 dev = [
     { name = "pre-commit", specifier = ">=4.0.0" },
+    { name = "pyright", specifier = ">=1.1.0" },
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.24.0" },
     { name = "ruff", specifier = ">=0.16.0,<0.17" },

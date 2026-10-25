@@ -9,7 +9,7 @@ from typing import Annotated, Any
 import httpx
 from fastmcp import Context, FastMCP
 from fastmcp.server.providers.skills import SkillsDirectoryProvider
-from fastmcp.server.server import ToolResult
+from fastmcp.tools.base import ToolResult
 from prefab_ui import PrefabApp
 from prefab_ui.components import Heading, Metric
 from pydantic import Field

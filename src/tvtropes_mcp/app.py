@@ -734,6 +734,7 @@ async def api_lookup_title(
     ]
 
     with _gconn(_db_path) as conn:
+        cand = ""
         for ns in namespaces:
             for cand in candidates:
                 if not cand:
