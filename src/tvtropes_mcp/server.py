@@ -315,6 +315,44 @@ async def scraper_status(
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
+async def vector_status(
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Observe the LanceDB vector index: vector count plus rebuild job states.
+
+    Rebuilds are queued via POST /api/vector/rebuild and polled via
+    GET /api/vector/rebuild/status — this tool is the read-only half
+    agents use to watch a running reindex (RAG_OPERATIONS_STANDARD §2).
+
+    ## Return Format
+    {"success": bool, "vectors": int, "jobs": [...],
+     "jobs_endpoint": str (HTTP daemon status URL — jobs live there when
+      served over HTTP; this process only tracks jobs it queued itself)}
+
+    ## Examples
+    vector_status()
+    """
+    try:
+        from tvtropes_mcp.app import _VECTOR_JOBS
+        from tvtropes_mcp.config import load_settings as _load
+        from tvtropes_mcp.vector_store import count_vectors
+
+        settings = _load()
+        vectors = count_vectors(settings.resolved_data_dir())
+        jobs = [{k: v for k, v in job.items() if k != "task"} for job in _VECTOR_JOBS.values()]
+        return {
+            "success": True,
+            "message": f"{vectors} vectors indexed, {len(jobs)} rebuild jobs tracked in this process",
+            "vectors": vectors,
+            "jobs": jobs,
+            "jobs_endpoint": f"http://127.0.0.1:{settings.port}/api/vector/rebuild/status",
+        }
+    except Exception as e:
+        log.error(f"vector_status failed: {e}", exc_info=True)
+        return {"success": False, "message": f"vector_status failed: {e}", "vectors": 0, "jobs": []}
+
+
+@mcp.tool(annotations={"readOnlyHint": True})
 async def trope_lookup_by_title(
     title: str,
     ctx: Context | None = None,
