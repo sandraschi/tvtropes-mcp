@@ -1,0 +1,44 @@
+# Central Documentation Rules
+
+## Rule #1: Read Central Docs First
+
+**BEFORE making any changes or starting work, ALWAYS:**
+
+1. **Read the Central Documentation README:**
+   - Location: `D:\Dev\repos\mcp-central-docs\README.md`
+   - This shows all important documentation "branches" (folder trees)
+   - Navigate from there to find specific information
+
+2. **Follow Documentation Branches:**
+   - Central docs are organized by topic (Anthropic ecosystem, Google ecosystem, patterns, projects, etc.)
+   - Each branch has its own README explaining what's inside
+   - Use the branch structure to find relevant docs
+
+3. **Check for Existing Patterns:**
+   - Look in `docs/patterns/` for design patterns
+   - Check `templates/` for reusable templates
+   - Review `docs/projects/` for similar project examples
+
+4. **Avoid Duplication:**
+   - Search existing docs before creating new ones
+   - Update existing docs rather than creating duplicates
+   - Reference central docs instead of copying content
+
+---
+
+## Session Context (TVTropes MCP)
+
+You have access to a local TVTropes mirror with 16 MCP tools for trope search,
+work browsing, graph traversal, and scraper control.
+
+**Before starting work:**
+1. Check mirror status: `scraper_status()` (tropes indexed, crawl backlog)
+2. Search tropes: `trope_search(query="<query>", limit=5)`
+3. Browse a work: `work_tropes(work_id="Series/BreakingBad")`
+
+**Repo facts (do not re-derive):**
+- Ports: backend 10964, dashboard 10965 (see `fleet-start.config.ps1`)
+- Env prefix: `TVTROPES_MCP_` (see `.env.example`, `src/tvtropes_mcp/config.py`)
+- Scraper auto-starts on serve; disabled in tests via `TVTROPES_MCP_AUTOSTART=0`
+- Commit hooks are gates: `ruff`, `ruff-format`, `mypy`, Biome (`just web-ci`).
+  Fix hook failures before pushing, never `--no-verify`.
