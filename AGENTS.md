@@ -34,7 +34,7 @@
 | `docs/SCRAPER_PLAN.md` | Implementation plan, schema, crawl math |
 | `web_sota/` | React/Vite dashboard (10 pages) |
 
-## MCP Tools (12)
+## MCP Tools (17)
 
 | Tool | Description |
 |------|-------------|

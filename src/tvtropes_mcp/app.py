@@ -508,7 +508,8 @@ async def api_ollama_chat(body: dict[str, Any]) -> dict[str, Any]:
                 return {"response": data.get("message", {}).get("content", ""), "error": False}
             return {"response": f"Ollama HTTP {r.status_code}", "error": True}
     except Exception as e:
-        return {"response": f"LLM error: {e}", "error": True}
+        # str(e) can be empty (e.g. bare asyncio.TimeoutError) - never return a blank error.
+        return {"response": f"LLM error: {e or type(e).__name__}", "error": True}
 
 
 @router.post("/ollama/test")
