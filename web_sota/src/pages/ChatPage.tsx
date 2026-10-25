@@ -1,7 +1,7 @@
 // biome-ignore-all lint/suspicious/noArrayIndexKey: append-only chat log, never reordered
 import { Brain, Download, Eraser, Loader2, Send, Sparkles, User } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiGet, apiMcpTool } from "@/api/client";
+import { apiGet, apiMcpTool, apiPost } from "@/api/client";
 import { PageHero } from "@/components/layout/PageHero";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -176,58 +176,15 @@ export function ChatPage() {
           chatMsgs.push({ role: m.role === "assistant" ? "assistant" : "user", content: m.text });
         }
 
-        const baseUrl = detectedProvider || "http://localhost:11434";
-        const model = detectedModel || "qwen2.5:27b";
-
-        const r = await fetch(`${baseUrl}/v1/chat/completions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model, messages: chatMsgs, temperature: 0.7, stream: true }),
+        // All LLM traffic goes through the backend proxy (POST /api/ollama/chat):
+        // the browser never talks to the provider directly, so endpoints and
+        // keys stay server-side where requests are time-boxed and logged.
+        const r = await apiPost<{ response: string; error: boolean }>("/api/ollama/chat", {
+          host: detectedProvider || undefined,
+          model: detectedModel || undefined,
+          messages: chatMsgs,
         });
-
-        if (!r.ok || !r.body) {
-          const errText = await r.text().catch(() => "stream failed");
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant", text: `LLM error: ${r.status} ${errText}` },
-          ]);
-          setLoading(false);
-          return;
-        }
-
-        const reader = r.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let fullText = "";
-
-        const assistantMsg = { role: "assistant" as const, text: "" };
-        setMessages((prev) => [...prev, assistantMsg]);
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed?.startsWith("data: ")) continue;
-            const jsonStr = trimmed.slice(6);
-            if (jsonStr === "[DONE]") break;
-            try {
-              const chunk = JSON.parse(jsonStr);
-              const delta = chunk?.choices?.[0]?.delta?.content || "";
-              fullText += delta;
-              setMessages((prev) => {
-                const next = [...prev];
-                next[next.length - 1] = { role: "assistant", text: fullText };
-                return next;
-              });
-            } catch {
-              /* parse error, skip */
-            }
-          }
-        }
+        setMessages((prev) => [...prev, { role: "assistant", text: r.response }]);
       } else if (mode === "mcp") {
         const cmd = userMsg.toLowerCase();
         let result: Record<string, unknown> = {};
